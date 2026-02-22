@@ -217,43 +217,45 @@ for icon, label, key in nav_items:
         <span style="font-size:10px;font-weight:700;letter-spacing:0.3px;{active_label}">{label}</span>
     </button>"""
 
-import streamlit.components.v1 as components
+# Inject nav bar into PARENT window using JS
 components.html(f"""
-<style>
-    body {{ margin:0; padding:0; background:transparent; }}
-    .nav-bar {{
+<script>
+(function() {{
+    // Remove old nav if exists
+    var old = window.parent.document.getElementById('smartshop-nav');
+    if (old) old.remove();
+
+    // Create nav bar in parent
+    var nav = window.parent.document.createElement('div');
+    nav.id = 'smartshop-nav';
+    nav.innerHTML = `{nav_buttons_html}`;
+    nav.style.cssText = `
         position:fixed;
         bottom:16px;
         left:50%;
         transform:translateX(-50%);
-        width:calc(100vw - 32px);
+        width:calc(100% - 32px);
         max-width:480px;
-        background:rgba(13,18,30,0.82);
+        background:rgba(13,18,30,0.85);
         backdrop-filter:blur(30px) saturate(200%);
         -webkit-backdrop-filter:blur(30px) saturate(200%);
-        border:1px solid rgba(255,255,255,0.07);
+        border:1px solid rgba(255,255,255,0.08);
         border-radius:28px;
         box-shadow:0 8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
         display:flex;
         justify-content:space-around;
         align-items:center;
-        padding:8px 8px 14px;
+        padding:10px 8px 16px;
         z-index:99999;
-    }}
-    button:hover {{
-        background:rgba(0,229,190,0.1) !important;
-        transform:scale(1.08) !important;
-    }}
-</style>
-<div class="nav-bar">
-    {nav_buttons_html}
-</div>
-<script>
+    `;
+    window.parent.document.body.appendChild(nav);
+}})();
+
 function navigate(page) {{
     window.parent.location.href = window.parent.location.pathname + '?nav=' + page;
 }}
 </script>
-""", height=90)
+""", height=0)
 
 # Read nav param
 nav_param = st.query_params.get("nav", None)
