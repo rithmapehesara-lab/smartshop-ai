@@ -261,7 +261,7 @@ st.markdown(f"""
 # ══════════════════════════════════════════════════════════════
 # 📊 DASHBOARD
 # ══════════════════════════════════════════════════════════════
-if st.session_state.page == "📊 Dashboard":
+if page == "📊 Dashboard":
     st.title("📊 Dashboard")
     st.caption(f"Good morning! Here's your shop summary for {datetime.now().strftime('%A, %d %B %Y')}")
 
@@ -319,7 +319,7 @@ if st.session_state.page == "📊 Dashboard":
 # ══════════════════════════════════════════════════════════════
 # 📦 INVENTORY
 # ══════════════════════════════════════════════════════════════
-elif st.session_state.page == "📦 Inventory":
+elif page == "📦 Inventory":
     st.title("📦 Inventory Management")
     tab1, tab2 = st.tabs(["📋 View Stock", "➕ Add Item"])
 
@@ -388,7 +388,7 @@ elif st.session_state.page == "📦 Inventory":
 # ══════════════════════════════════════════════════════════════
 # 💰 SALES REPORT
 # ══════════════════════════════════════════════════════════════
-elif st.session_state.page == "💰 Sales Report":
+elif page == "💰 Sales Report":
     st.title("💰 Sales Report & Analytics")
 
     all_sales = supabase.table("sales").select("*").execute().data
@@ -478,7 +478,7 @@ elif st.session_state.page == "💰 Sales Report":
 # ══════════════════════════════════════════════════════════════
 # 🚚 SUPPLIERS
 # ══════════════════════════════════════════════════════════════
-elif st.session_state.page == "🚚 Suppliers":
+elif page == "🚚 Suppliers":
     st.title("🚚 Supplier Management")
     st.markdown("""<div class="success-box">🤖 AI Auto-Order: Enabled</div>""", unsafe_allow_html=True)
 
@@ -551,7 +551,7 @@ elif st.session_state.page == "🚚 Suppliers":
 # ══════════════════════════════════════════════════════════════
 # 🎁 LOYALTY
 # ══════════════════════════════════════════════════════════════
-elif st.session_state.page == "🎁 Loyalty":
+elif page == "🎁 Loyalty":
     st.title("🎁 Customer Loyalty System")
 
     cust_data = supabase.table("customers").select("*").execute().data
