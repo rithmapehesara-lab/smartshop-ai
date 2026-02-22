@@ -224,6 +224,37 @@ elif page == "📦 Inventory":
                 st.success(f"✅ '{name}' added!")
                 st.rerun()
 
+    st.divider()
+    col_del, col_upd = st.columns(2)
+
+    with col_del:
+        st.subheader("🗑️ Delete Item")
+        inv_del = supabase.table("inventory").select("id,name").execute().data
+        if inv_del:
+            del_names = [i["name"] for i in inv_del]
+            del_item = st.selectbox("Item select කරන්න", del_names, key="del_select")
+            if st.button("🗑️ Delete", type="primary", use_container_width=True):
+                del_id = next((i["id"] for i in inv_del if i["name"] == del_item), None)
+                if del_id:
+                    supabase.table("inventory").delete().eq("id", del_id).execute()
+                    st.success(f"✅ '{del_item}' deleted!")
+                    st.rerun()
+
+    with col_upd:
+        st.subheader("✏️ Update Stock")
+        inv_upd = supabase.table("inventory").select("*").execute().data
+        if inv_upd:
+            upd_names = [i["name"] for i in inv_upd]
+            upd_item = st.selectbox("Item select කරන්න", upd_names, key="upd_select")
+            selected = next((i for i in inv_upd if i["name"] == upd_item), None)
+            if selected:
+                new_stock = st.number_input("New Stock", min_value=0, value=selected["stock"], key="new_stock")
+                new_price = st.number_input("New Price (Rs.)", min_value=0.0, value=float(selected["price"]), key="new_price")
+                if st.button("✏️ Update", type="secondary", use_container_width=True):
+                    supabase.table("inventory").update({"stock": new_stock, "price": new_price}).eq("id", selected["id"]).execute()
+                    st.success(f"✅ '{upd_item}' updated!")
+                    st.rerun()
+
 # ══════════════════════════════════════════════════════════════
 # 💰 SALES REPORT
 # ══════════════════════════════════════════════════════════════
