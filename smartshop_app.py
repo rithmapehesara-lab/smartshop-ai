@@ -158,16 +158,60 @@ def predict_demand(item_name):
     return round(avg * 7)
 
 # ─── NAVIGATION ────────────────────────────────────────────────
-# Read page from query params
-page_map = {
-    "dashboard": "📊 Dashboard",
-    "inventory": "📦 Inventory",
-    "sales": "💰 Sales Report",
-    "suppliers": "🚚 Suppliers",
-    "loyalty": "🎁 Loyalty",
+if "page" not in st.session_state:
+    st.session_state.page = "📊 Dashboard"
+
+page = st.session_state.page
+
+# CSS
+st.markdown("""
+<style>
+.main .block-container { padding-bottom: 120px !important; }
+footer, header { display: none !important; }
+[data-testid="stSidebar"] { display: none !important; }
+[data-testid="collapsedControl"] { display: none !important; }
+
+/* Nav bar wrapper - fixed at bottom */
+[data-testid="stBottom"] {
+    position: fixed !important;
+    bottom: 16px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: calc(100% - 32px) !important;
+    max-width: 480px !important;
+    background: rgba(13, 18, 30, 0.80) !important;
+    backdrop-filter: blur(30px) saturate(200%) !important;
+    -webkit-backdrop-filter: blur(30px) saturate(200%) !important;
+    border: 1px solid rgba(255,255,255,0.07) !important;
+    border-radius: 28px !important;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+    padding: 8px 8px 14px !important;
+    z-index: 99999 !important;
 }
-current = st.query_params.get("page", "dashboard")
-page = page_map.get(current, "📊 Dashboard")
+
+/* Nav buttons */
+[data-testid="stBottom"] button {
+    background: transparent !important;
+    border: none !important;
+    color: #4B5563 !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    border-radius: 18px !important;
+    padding: 8px 4px !important;
+    transition: all 0.18s ease !important;
+    width: 100% !important;
+}
+[data-testid="stBottom"] button:hover {
+    background: rgba(0,229,190,0.1) !important;
+    color: #00E5BE !important;
+    transform: scale(1.06) !important;
+}
+[data-testid="stBottom"] button p {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # Top header
 st.markdown(f"""
@@ -179,84 +223,33 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# iPhone liquid glass bottom nav bar
-active = current
-st.markdown(f"""
-<style>
-.main .block-container {{ padding-bottom: 110px !important; }}
-.iphone-nav {{
-    position: fixed;
-    bottom: 16px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: calc(100% - 32px);
-    max-width: 500px;
-    background: rgba(17, 24, 39, 0.75);
-    backdrop-filter: blur(30px) saturate(180%);
-    -webkit-backdrop-filter: blur(30px) saturate(180%);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 28px;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06);
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    padding: 10px 8px 12px;
-    z-index: 99999;
-}}
-.iphone-nav a {{
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    text-decoration: none;
-    padding: 6px 14px;
-    border-radius: 18px;
-    transition: all 0.2s ease;
-    min-width: 56px;
-}}
-.iphone-nav a:hover {{
-    background: rgba(0,229,190,0.12);
-    transform: scale(1.08);
-}}
-.iphone-nav a.active {{
-    background: rgba(0,229,190,0.15);
-    box-shadow: 0 0 16px rgba(0,229,190,0.2);
-}}
-.nav-icon {{ font-size: 22px; line-height: 1; }}
-.nav-label {{
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.2px;
-    color: #64748B;
-    font-family: -apple-system, sans-serif;
-}}
-.iphone-nav a.active .nav-label {{ color: #00E5BE; }}
-.iphone-nav a:not(.active) .nav-icon {{ filter: grayscale(0.4) opacity(0.6); }}
-</style>
+# Bottom nav buttons - inside stBottom
+nav_items = [
+    ("📊", "Home",   "📊 Dashboard"),
+    ("📦", "Stock",  "📦 Inventory"),
+    ("💰", "Sales",  "💰 Sales Report"),
+    ("🚚", "Orders", "🚚 Suppliers"),
+    ("🎁", "Loyal",  "🎁 Loyalty"),
+]
 
-<div class="iphone-nav">
-    <a href="?page=dashboard" class="{'active' if active=='dashboard' else ''}">
-        <span class="nav-icon">📊</span>
-        <span class="nav-label">Home</span>
-    </a>
-    <a href="?page=inventory" class="{'active' if active=='inventory' else ''}">
-        <span class="nav-icon">📦</span>
-        <span class="nav-label">Stock</span>
-    </a>
-    <a href="?page=sales" class="{'active' if active=='sales' else ''}">
-        <span class="nav-icon">💰</span>
-        <span class="nav-label">Sales</span>
-    </a>
-    <a href="?page=suppliers" class="{'active' if active=='suppliers' else ''}">
-        <span class="nav-icon">🚚</span>
-        <span class="nav-label">Orders</span>
-    </a>
-    <a href="?page=loyalty" class="{'active' if active=='loyalty' else ''}">
-        <span class="nav-icon">🎁</span>
-        <span class="nav-label">Loyalty</span>
-    </a>
-</div>
-""", unsafe_allow_html=True)
+with st.container(key="nav_bar"):
+    cols = st.columns(5)
+    for i, (icon, label, target) in enumerate(nav_items):
+        is_active = page == target
+        if is_active:
+            st.markdown(f"""
+            <style>
+            [data-testid="stBottom"] > div > div > div > div:nth-child({i+1}) button {{
+                background: rgba(0,229,190,0.14) !important;
+                color: #00E5BE !important;
+                box-shadow: 0 0 14px rgba(0,229,190,0.2) !important;
+            }}
+            </style>
+            """, unsafe_allow_html=True)
+        with cols[i]:
+            if st.button(f"{icon} {label}", use_container_width=True, key=f"nav_{i}"):
+                st.session_state.page = target
+                st.rerun()
 
 # ══════════════════════════════════════════════════════════════
 # 📊 DASHBOARD
@@ -630,4 +623,3 @@ elif page == "🎁 Loyalty":
                     supabase.table("customers").update({"points": cust["points"] + points_earn, "total_spent": cust["total_spent"] + purchase}).eq("id", cust["id"]).execute()
                     st.success(f"✅ {points_earn} points added to {selected}!")
                     st.rerun()
-
