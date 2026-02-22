@@ -9,15 +9,14 @@ st.set_page_config(
     page_title="SmartShop AI",
     page_icon="🛒",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # ─── CUSTOM CSS ────────────────────────────────────────────────
 st.markdown("""
 <style>
     .stApp { background-color: #0A0F1E; color: #F1F5F9; }
-    [data-testid="stSidebar"] { display: none; }
-    [data-testid="collapsedControl"] { display: none; }
+    [data-testid="stSidebar"] { background-color: #111827; }
     .metric-card {
         background: #111827;
         border: 1px solid #1E293B;
@@ -47,44 +46,6 @@ st.markdown("""
         font-weight: 500;
     }
     h1, h2, h3 { color: #F1F5F9 !important; }
-    .main .block-container { padding-bottom: 90px !important; }
-
-    /* Bottom Nav Bar */
-    .bottom-nav {
-        position: fixed;
-        bottom: 0; left: 0; right: 0;
-        background: #111827;
-        border-top: 1px solid #1E293B;
-        border-radius: 20px 20px 0 0;
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-        padding: 10px 0 16px;
-        z-index: 9999;
-        box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
-    }
-    .nav-btn {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 3px;
-        padding: 8px 16px;
-        border-radius: 12px;
-        cursor: pointer;
-        text-decoration: none;
-        font-size: 10px;
-        color: #64748B;
-        font-family: sans-serif;
-        transition: all 0.2s;
-    }
-    .nav-btn.active {
-        background: rgba(0,229,190,0.1);
-        color: #00E5BE;
-    }
-    .nav-icon { font-size: 22px; }
-
-    /* Radio buttons hidden - we use custom nav */
-    div[data-testid="stRadio"] { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -157,89 +118,20 @@ def predict_demand(item_name):
     avg = total / max(len(data.data), 1)
     return round(avg * 7)
 
-# ─── NAVIGATION ────────────────────────────────────────────────
-if "page" not in st.session_state:
-    st.session_state.page = "📊 Dashboard"
-
-# Top header
-st.markdown(f"""
-<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 8px;">
-    <div>
-        <div style="font-size:22px;font-weight:800;color:#00E5BE;">🛒 SmartShop AI</div>
-        <div style="font-size:11px;color:#64748B;">{datetime.now().strftime('%A, %d %B %Y')} · Pehesara Grocery</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# Bottom Nav
-st.markdown("""
-<style>
-.main .block-container { padding-bottom: 110px !important; }
-
-/* iPhone style bottom bar */
-section[data-testid="stBottom"] {
-    background: rgba(17,24,39,0.95) !important;
-    backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
-    border-top: 1px solid #1E293B !important;
-    border-radius: 24px 24px 0 0 !important;
-    box-shadow: 0 -8px 32px rgba(0,0,0,0.5) !important;
-    padding: 8px 12px 20px !important;
-}
-section[data-testid="stBottom"] button {
-    background: transparent !important;
-    border: none !important;
-    color: #64748B !important;
-    font-size: 10px !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.3px !important;
-    padding: 8px 4px !important;
-    border-radius: 14px !important;
-    transition: all 0.15s ease !important;
-    width: 100% !important;
-}
-section[data-testid="stBottom"] button:hover {
-    background: rgba(0,229,190,0.12) !important;
-    color: #00E5BE !important;
-    transform: scale(1.05) !important;
-}
-section[data-testid="stBottom"] button p {
-    font-size: 10px !important;
-    font-weight: 600 !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-page = st.session_state.page
-
-# iPhone style bottom nav bar
-with st.container(key="bottom_nav"):
-    c1, c2, c3, c4, c5 = st.columns(5)
-    with c1:
-        if st.button("📊\nHome", use_container_width=True, key="nav1"):
-            st.session_state.page = "📊 Dashboard"
-            st.rerun()
-    with c2:
-        if st.button("📦\nStock", use_container_width=True, key="nav2"):
-            st.session_state.page = "📦 Inventory"
-            st.rerun()
-    with c3:
-        if st.button("💰\nSales", use_container_width=True, key="nav3"):
-            st.session_state.page = "💰 Sales Report"
-            st.rerun()
-    with c4:
-        if st.button("🚚\nOrder", use_container_width=True, key="nav4"):
-            st.session_state.page = "🚚 Suppliers"
-            st.rerun()
-    with c5:
-        if st.button("🎁\nLoyal", use_container_width=True, key="nav5"):
-            st.session_state.page = "🎁 Loyalty"
-            st.rerun()
+# ─── SIDEBAR ───────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("## 🛒 SmartShop AI")
+    st.markdown("*Intelligent Grocery Manager*")
+    st.divider()
+    page = st.radio("Navigate", ["📊 Dashboard", "📦 Inventory", "💰 Sales Report", "🚚 Suppliers", "🎁 Loyalty"])
+    st.divider()
+    st.markdown(f"**Date:** {datetime.now().strftime('%d %b %Y')}")
+    st.markdown("**Shop:** Pehesara Grocery")
 
 # ══════════════════════════════════════════════════════════════
 # 📊 DASHBOARD
 # ══════════════════════════════════════════════════════════════
-if st.session_state.page == "📊 Dashboard":
+if page == "📊 Dashboard":
     st.title("📊 Dashboard")
     st.caption(f"Good morning! Here's your shop summary for {datetime.now().strftime('%A, %d %B %Y')}")
 
@@ -297,7 +189,7 @@ if st.session_state.page == "📊 Dashboard":
 # ══════════════════════════════════════════════════════════════
 # 📦 INVENTORY
 # ══════════════════════════════════════════════════════════════
-elif st.session_state.page == "📦 Inventory":
+elif page == "📦 Inventory":
     st.title("📦 Inventory Management")
     tab1, tab2 = st.tabs(["📋 View Stock", "➕ Add Item"])
 
@@ -366,7 +258,7 @@ elif st.session_state.page == "📦 Inventory":
 # ══════════════════════════════════════════════════════════════
 # 💰 SALES REPORT
 # ══════════════════════════════════════════════════════════════
-elif st.session_state.page == "💰 Sales Report":
+elif page == "💰 Sales Report":
     st.title("💰 Sales Report & Analytics")
 
     all_sales = supabase.table("sales").select("*").execute().data
@@ -405,33 +297,6 @@ elif st.session_state.page == "💰 Sales Report":
             top.columns = ["Item", "Units Sold", "Revenue (Rs.)"]
             st.dataframe(top.sort_values("Revenue (Rs.)", ascending=False), use_container_width=True, hide_index=True)
 
-    st.divider()
-    col_del, col_upd = st.columns(2)
-    with col_del:
-        st.subheader("🗑️ Delete Sale")
-        sales_del = supabase.table("sales").select("id,item_name,date,total").execute().data
-        if sales_del:
-            sale_options = [f"{s['item_name']} | {s['date']} | Rs.{s['total']}" for s in sales_del]
-            del_sale = st.selectbox("Sale select කරන්න", sale_options, key="del_sale")
-            if st.button("🗑️ Delete Sale", type="primary", use_container_width=True):
-                del_idx = sale_options.index(del_sale)
-                del_id = sales_del[del_idx]["id"]
-                supabase.table("sales").delete().eq("id", del_id).execute()
-                st.success("✅ Sale deleted!")
-                st.rerun()
-    with col_upd:
-        st.subheader("✏️ Update Sale")
-        if sales_del:
-            upd_sale = st.selectbox("Sale select කරන්න", sale_options, key="upd_sale")
-            upd_idx = sale_options.index(upd_sale)
-            selected_sale = sales_del[upd_idx]
-            new_qty = st.number_input("Quantity", min_value=1, value=selected_sale["quantity"] if "quantity" in selected_sale else 1, key="upd_qty")
-            new_total = st.number_input("Total (Rs.)", min_value=0.0, value=float(selected_sale["total"]), key="upd_total")
-            if st.button("✏️ Update Sale", use_container_width=True):
-                supabase.table("sales").update({"quantity": new_qty, "total": new_total}).eq("id", selected_sale["id"]).execute()
-                st.success("✅ Sale updated!")
-                st.rerun()
-
     st.subheader("➕ Record New Sale")
     inv_data = supabase.table("inventory").select("name,price,stock,id").execute().data
     if inv_data:
@@ -456,7 +321,7 @@ elif st.session_state.page == "💰 Sales Report":
 # ══════════════════════════════════════════════════════════════
 # 🚚 SUPPLIERS
 # ══════════════════════════════════════════════════════════════
-elif st.session_state.page == "🚚 Suppliers":
+elif page == "🚚 Suppliers":
     st.title("🚚 Supplier Management")
     st.markdown("""<div class="success-box">🤖 AI Auto-Order: Enabled</div>""", unsafe_allow_html=True)
 
@@ -484,34 +349,6 @@ elif st.session_state.page == "🚚 Suppliers":
     if sup_data:
         st.dataframe(pd.DataFrame(sup_data)[["name", "phone", "email", "items"]], use_container_width=True, hide_index=True)
 
-    st.divider()
-    col_del, col_upd = st.columns(2)
-    with col_del:
-        st.subheader("🗑️ Delete Supplier")
-        sup_del = supabase.table("suppliers").select("*").execute().data
-        if sup_del:
-            sup_names = [s["name"] for s in sup_del]
-            del_sup = st.selectbox("Supplier select කරන්න", sup_names, key="del_sup")
-            if st.button("🗑️ Delete Supplier", type="primary", use_container_width=True):
-                del_id = next((s["id"] for s in sup_del if s["name"] == del_sup), None)
-                if del_id:
-                    supabase.table("suppliers").delete().eq("id", del_id).execute()
-                    st.success(f"✅ '{del_sup}' deleted!")
-                    st.rerun()
-    with col_upd:
-        st.subheader("✏️ Update Supplier")
-        if sup_del:
-            upd_sup = st.selectbox("Supplier select කරන්න", [s["name"] for s in sup_del], key="upd_sup")
-            sel_sup = next((s for s in sup_del if s["name"] == upd_sup), None)
-            if sel_sup:
-                new_phone = st.text_input("Phone", value=sel_sup["phone"] or "", key="upd_sup_phone")
-                new_email = st.text_input("Email", value=sel_sup["email"] or "", key="upd_sup_email")
-                new_items = st.text_input("Items", value=sel_sup["items"] or "", key="upd_sup_items")
-                if st.button("✏️ Update Supplier", use_container_width=True):
-                    supabase.table("suppliers").update({"phone": new_phone, "email": new_email, "items": new_items}).eq("id", sel_sup["id"]).execute()
-                    st.success(f"✅ '{upd_sup}' updated!")
-                    st.rerun()
-
     st.subheader("➕ Add Supplier")
     with st.form("add_supplier"):
         col1, col2 = st.columns(2)
@@ -529,7 +366,7 @@ elif st.session_state.page == "🚚 Suppliers":
 # ══════════════════════════════════════════════════════════════
 # 🎁 LOYALTY
 # ══════════════════════════════════════════════════════════════
-elif st.session_state.page == "🎁 Loyalty":
+elif page == "🎁 Loyalty":
     st.title("🎁 Customer Loyalty System")
 
     cust_data = supabase.table("customers").select("*").execute().data
@@ -554,33 +391,6 @@ elif st.session_state.page == "🎁 Loyalty":
     if not df_cust.empty:
         df_cust["Badge"] = df_cust["points"].apply(lambda p: "🥇 Gold" if p > 1000 else "🥈 Silver" if p > 700 else "🥉 Bronze" if p > 400 else "⭐ Member")
         st.dataframe(df_cust[["name", "phone", "points", "total_spent", "Badge"]].sort_values("points", ascending=False), use_container_width=True, hide_index=True)
-
-    st.divider()
-    col_del, col_upd = st.columns(2)
-    with col_del:
-        st.subheader("🗑️ Delete Customer")
-        cust_del = supabase.table("customers").select("*").execute().data
-        if cust_del:
-            cust_del_names = [c["name"] for c in cust_del]
-            del_cust = st.selectbox("Customer select කරන්න", cust_del_names, key="del_cust")
-            if st.button("🗑️ Delete Customer", type="primary", use_container_width=True):
-                del_id = next((c["id"] for c in cust_del if c["name"] == del_cust), None)
-                if del_id:
-                    supabase.table("customers").delete().eq("id", del_id).execute()
-                    st.success(f"✅ '{del_cust}' deleted!")
-                    st.rerun()
-    with col_upd:
-        st.subheader("✏️ Update Customer")
-        if cust_del:
-            upd_cust = st.selectbox("Customer select කරන්න", [c["name"] for c in cust_del], key="upd_cust")
-            sel_cust = next((c for c in cust_del if c["name"] == upd_cust), None)
-            if sel_cust:
-                new_phone = st.text_input("Phone", value=sel_cust["phone"] or "", key="upd_cust_phone")
-                new_points = st.number_input("Points", min_value=0, value=sel_cust["points"], key="upd_cust_points")
-                if st.button("✏️ Update Customer", use_container_width=True):
-                    supabase.table("customers").update({"phone": new_phone, "points": new_points}).eq("id", sel_cust["id"]).execute()
-                    st.success(f"✅ '{upd_cust}' updated!")
-                    st.rerun()
 
     st.divider()
     col1, col2 = st.columns(2)
