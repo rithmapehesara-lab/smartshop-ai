@@ -630,3 +630,4 @@ elif page == "🎁 Loyalty":
                     supabase.table("customers").update({"points": cust["points"] + points_earn, "total_spent": cust["total_spent"] + purchase}).eq("id", cust["id"]).execute()
                     st.success(f"✅ {points_earn} points added to {selected}!")
                     st.rerun()
+
