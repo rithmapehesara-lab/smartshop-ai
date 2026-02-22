@@ -9,14 +9,15 @@ st.set_page_config(
     page_title="SmartShop AI",
     page_icon="🛒",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # ─── CUSTOM CSS ────────────────────────────────────────────────
 st.markdown("""
 <style>
     .stApp { background-color: #0A0F1E; color: #F1F5F9; }
-    [data-testid="stSidebar"] { background-color: #111827; }
+    [data-testid="stSidebar"] { display: none; }
+    [data-testid="collapsedControl"] { display: none; }
     .metric-card {
         background: #111827;
         border: 1px solid #1E293B;
@@ -46,6 +47,44 @@ st.markdown("""
         font-weight: 500;
     }
     h1, h2, h3 { color: #F1F5F9 !important; }
+    .main .block-container { padding-bottom: 90px !important; }
+
+    /* Bottom Nav Bar */
+    .bottom-nav {
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        background: #111827;
+        border-top: 1px solid #1E293B;
+        border-radius: 20px 20px 0 0;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        padding: 10px 0 16px;
+        z-index: 9999;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+    }
+    .nav-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        padding: 8px 16px;
+        border-radius: 12px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 10px;
+        color: #64748B;
+        font-family: sans-serif;
+        transition: all 0.2s;
+    }
+    .nav-btn.active {
+        background: rgba(0,229,190,0.1);
+        color: #00E5BE;
+    }
+    .nav-icon { font-size: 22px; }
+
+    /* Radio buttons hidden - we use custom nav */
+    div[data-testid="stRadio"] { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -118,15 +157,38 @@ def predict_demand(item_name):
     avg = total / max(len(data.data), 1)
     return round(avg * 7)
 
-# ─── SIDEBAR ───────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("## 🛒 SmartShop AI")
-    st.markdown("*Intelligent Grocery Manager*")
-    st.divider()
-    page = st.radio("Navigate", ["📊 Dashboard", "📦 Inventory", "💰 Sales Report", "🚚 Suppliers", "🎁 Loyalty"])
-    st.divider()
-    st.markdown(f"**Date:** {datetime.now().strftime('%d %b %Y')}")
-    st.markdown("**Shop:** Pehesara Grocery")
+# ─── NAVIGATION ────────────────────────────────────────────────
+if "page" not in st.session_state:
+    st.session_state.page = "📊 Dashboard"
+
+# Top header
+st.markdown(f"""
+<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 16px;">
+    <div>
+        <div style="font-size:22px;font-weight:800;color:#00E5BE;">🛒 SmartShop AI</div>
+        <div style="font-size:11px;color:#64748B;">{datetime.now().strftime('%A, %d %B %Y')} · Pehesara Grocery</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Bottom Nav
+pages = [
+    ("📊", "Dashboard", "📊 Dashboard"),
+    ("📦", "Inventory", "📦 Inventory"),
+    ("💰", "Sales", "💰 Sales Report"),
+    ("🚚", "Suppliers", "🚚 Suppliers"),
+    ("🎁", "Loyalty", "🎁 Loyalty"),
+]
+
+nav_html = '<div class="bottom-nav">'
+for icon, label, key in pages:
+    active_class = "active" if st.session_state.page == key else ""
+    nav_html += f'<div class="nav-btn {active_class}" onclick="">{icon}<span>{label}</span></div>'
+nav_html += "</div>"
+st.markdown(nav_html, unsafe_allow_html=True)
+
+# Hidden radio for actual navigation
+page = st.radio("nav", [p[2] for p in pages], key="page", label_visibility="hidden")
 
 # ══════════════════════════════════════════════════════════════
 # 📊 DASHBOARD
