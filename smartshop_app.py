@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
-import sqlite3
-import random
+from supabase import create_client
 from datetime import datetime, timedelta
+import random
 
 # ─── PAGE CONFIG ───────────────────────────────────────────────
 st.set_page_config(
@@ -15,7 +15,6 @@ st.set_page_config(
 # ─── CUSTOM CSS ────────────────────────────────────────────────
 st.markdown("""
 <style>
-    .main { background-color: #0A0F1E; }
     .stApp { background-color: #0A0F1E; color: #F1F5F9; }
     [data-testid="stSidebar"] { background-color: #111827; }
     .metric-card {
@@ -47,114 +46,87 @@ st.markdown("""
         font-weight: 500;
     }
     h1, h2, h3 { color: #F1F5F9 !important; }
-    .stDataFrame { background: #111827; }
 </style>
 """, unsafe_allow_html=True)
 
-# ─── DATABASE SETUP ────────────────────────────────────────────
-def init_db():
-    conn = sqlite3.connect("smartshop.db")
-    c = conn.cursor()
+# ─── SUPABASE CONNECTION ────────────────────────────────────────
+SUPABASE_URL = "https://ejktmvidjinjbhrypuok.supabase.co"
+SUPABASE_KEY = "sb_publishable_onBCXPVNrNlUFStRhG7bwQ_CnANRCPN"
 
-    c.execute("""CREATE TABLE IF NOT EXISTS inventory (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT, category TEXT,
-        stock INTEGER, min_stock INTEGER, max_stock INTEGER,
-        price REAL, cost REAL, unit TEXT,
-        supplier TEXT, expire_date TEXT
-    )""")
+@st.cache_resource
+def get_supabase():
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
 
-    c.execute("""CREATE TABLE IF NOT EXISTS sales (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        item_name TEXT, quantity INTEGER,
-        total REAL, date TEXT
-    )""")
+supabase = get_supabase()
 
-    c.execute("""CREATE TABLE IF NOT EXISTS customers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT, phone TEXT,
-        points INTEGER, total_spent REAL,
-        joined_date TEXT
-    )""")
-
-    c.execute("""CREATE TABLE IF NOT EXISTS suppliers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT, phone TEXT,
-        email TEXT, items TEXT
-    )""")
-
-    # Seed data if empty
-    if c.execute("SELECT COUNT(*) FROM inventory").fetchone()[0] == 0:
+# ─── SEED DATA ─────────────────────────────────────────────────
+def seed_data():
+    inv = supabase.table("inventory").select("id").execute()
+    if not inv.data:
         items = [
-            ("Rice (5kg)", "Grains", 12, 20, 100, 850, 700, "bags", "Supplier A", "2025-12-01"),
-            ("Sugar (1kg)", "Essentials", 34, 15, 80, 190, 150, "packs", "Supplier A", "2025-10-01"),
-            ("Coconut Oil (1L)", "Oils", 8, 10, 50, 480, 400, "bottles", "Supplier B", "2026-03-01"),
-            ("Milk Powder (400g)", "Dairy", 25, 10, 60, 650, 540, "tins", "Supplier C", "2025-11-01"),
-            ("Biscuits (200g)", "Snacks", 60, 20, 100, 120, 90, "packs", "Supplier B", "2025-09-15"),
-            ("Soap Bar", "Toiletries", 5, 15, 60, 85, 65, "bars", "Supplier D", "2026-06-01"),
-            ("Shampoo (200ml)", "Toiletries", 18, 10, 40, 320, 260, "bottles", "Supplier D", "2026-05-01"),
-            ("Canned Fish (425g)", "Canned", 30, 12, 50, 380, 310, "cans", "Supplier C", "2026-01-01"),
+            {"name": "Rice (5kg)", "category": "Grains", "stock": 12, "min_stock": 20, "max_stock": 100, "price": 850, "cost": 700, "unit": "bags", "supplier": "Supplier A", "expire_date": "2025-12-01"},
+            {"name": "Sugar (1kg)", "category": "Essentials", "stock": 34, "min_stock": 15, "max_stock": 80, "price": 190, "cost": 150, "unit": "packs", "supplier": "Supplier A", "expire_date": "2025-10-01"},
+            {"name": "Coconut Oil (1L)", "category": "Oils", "stock": 8, "min_stock": 10, "max_stock": 50, "price": 480, "cost": 400, "unit": "bottles", "supplier": "Supplier B", "expire_date": "2026-03-01"},
+            {"name": "Milk Powder (400g)", "category": "Dairy", "stock": 25, "min_stock": 10, "max_stock": 60, "price": 650, "cost": 540, "unit": "tins", "supplier": "Supplier C", "expire_date": "2025-11-01"},
+            {"name": "Biscuits (200g)", "category": "Snacks", "stock": 60, "min_stock": 20, "max_stock": 100, "price": 120, "cost": 90, "unit": "packs", "supplier": "Supplier B", "expire_date": "2025-09-15"},
+            {"name": "Soap Bar", "category": "Toiletries", "stock": 5, "min_stock": 15, "max_stock": 60, "price": 85, "cost": 65, "unit": "bars", "supplier": "Supplier D", "expire_date": "2026-06-01"},
         ]
-        c.executemany("INSERT INTO inventory (name,category,stock,min_stock,max_stock,price,cost,unit,supplier,expire_date) VALUES (?,?,?,?,?,?,?,?,?,?)", items)
+        supabase.table("inventory").insert(items).execute()
 
-    if c.execute("SELECT COUNT(*) FROM sales").fetchone()[0] == 0:
-        sale_items = ["Rice (5kg)", "Sugar (1kg)", "Biscuits (200g)", "Milk Powder (400g)", "Coconut Oil (1L)"]
-        prices = {"Rice (5kg)": 850, "Sugar (1kg)": 190, "Biscuits (200g)": 120, "Milk Powder (400g)": 650, "Coconut Oil (1L)": 480}
-        for i in range(60):
-            date = (datetime.now() - timedelta(days=i % 30)).strftime("%Y-%m-%d")
-            item = random.choice(sale_items)
-            qty = random.randint(1, 8)
-            c.execute("INSERT INTO sales (item_name, quantity, total, date) VALUES (?,?,?,?)",
-                      (item, qty, qty * prices[item], date))
-
-    if c.execute("SELECT COUNT(*) FROM customers").fetchone()[0] == 0:
+    cust = supabase.table("customers").select("id").execute()
+    if not cust.data:
         customers = [
-            ("Kumari Silva", "071-234-5678", 1250, 42000, "2024-01-15"),
-            ("Nimal Perera", "077-876-5432", 980, 35000, "2024-02-20"),
-            ("Sanduni De Silva", "076-555-0101", 720, 28000, "2024-03-10"),
-            ("Kamal Fernando", "070-111-2222", 540, 18000, "2024-04-05"),
-            ("Dilani Rathnayake", "075-333-4444", 320, 12000, "2024-05-12"),
+            {"name": "Kumari Silva", "phone": "071-234-5678", "points": 1250, "total_spent": 42000, "joined_date": "2024-01-15"},
+            {"name": "Nimal Perera", "phone": "077-876-5432", "points": 980, "total_spent": 35000, "joined_date": "2024-02-20"},
+            {"name": "Sanduni De Silva", "phone": "076-555-0101", "points": 720, "total_spent": 28000, "joined_date": "2024-03-10"},
+            {"name": "Kamal Fernando", "phone": "070-111-2222", "points": 540, "total_spent": 18000, "joined_date": "2024-04-05"},
         ]
-        c.executemany("INSERT INTO customers (name,phone,points,total_spent,joined_date) VALUES (?,?,?,?,?)", customers)
+        supabase.table("customers").insert(customers).execute()
 
-    if c.execute("SELECT COUNT(*) FROM suppliers").fetchone()[0] == 0:
+    sup = supabase.table("suppliers").select("id").execute()
+    if not sup.data:
         suppliers = [
-            ("Supplier A", "011-234-5678", "supplierA@gmail.com", "Rice, Sugar"),
-            ("Supplier B", "011-876-5432", "supplierB@gmail.com", "Biscuits, Coconut Oil"),
-            ("Supplier C", "011-555-0101", "supplierC@gmail.com", "Milk Powder, Canned Fish"),
-            ("Supplier D", "011-111-2222", "supplierD@gmail.com", "Soap, Shampoo"),
+            {"name": "Supplier A", "phone": "011-234-5678", "email": "supplierA@gmail.com", "items": "Rice, Sugar"},
+            {"name": "Supplier B", "phone": "011-876-5432", "email": "supplierB@gmail.com", "items": "Biscuits, Coconut Oil"},
+            {"name": "Supplier C", "phone": "011-555-0101", "email": "supplierC@gmail.com", "items": "Milk Powder"},
+            {"name": "Supplier D", "phone": "011-111-2222", "email": "supplierD@gmail.com", "items": "Soap, Shampoo"},
         ]
-        c.executemany("INSERT INTO suppliers (name,phone,email,items) VALUES (?,?,?,?)", suppliers)
+        supabase.table("suppliers").insert(suppliers).execute()
 
-    conn.commit()
-    conn.close()
+    sales = supabase.table("sales").select("id").execute()
+    if not sales.data:
+        sale_items = [
+            ("Rice (5kg)", 850), ("Sugar (1kg)", 190),
+            ("Biscuits (200g)", 120), ("Milk Powder (400g)", 650), ("Coconut Oil (1L)", 480)
+        ]
+        records = []
+        for i in range(30):
+            date = (datetime.now() - timedelta(days=i % 14)).strftime("%Y-%m-%d")
+            item, price = random.choice(sale_items)
+            qty = random.randint(1, 6)
+            records.append({"item_name": item, "quantity": qty, "total": qty * price, "date": date})
+        supabase.table("sales").insert(records).execute()
 
-def get_conn():
-    return sqlite3.connect("smartshop.db")
+seed_data()
 
-# ─── AI PREDICTION (Simple Rule-Based) ─────────────────────────
+# ─── AI PREDICTION ──────────────────────────────────────────────
 def predict_demand(item_name):
-    conn = get_conn()
-    df = pd.read_sql("SELECT * FROM sales WHERE item_name=? ORDER BY date DESC LIMIT 14", conn, params=(item_name,))
-    conn.close()
-    if df.empty:
+    data = supabase.table("sales").select("quantity").eq("item_name", item_name).execute()
+    if not data.data:
         return 0
-    avg_daily = df["quantity"].sum() / 14
-    return round(avg_daily * 7)  # predict next 7 days
+    total = sum([r["quantity"] for r in data.data])
+    avg = total / max(len(data.data), 1)
+    return round(avg * 7)
 
 # ─── SIDEBAR ───────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## 🛒 SmartShop AI")
     st.markdown("*Intelligent Grocery Manager*")
     st.divider()
-    page = st.radio("Navigate", ["📊 Dashboard", "📦 Inventory", "💰 Sales Report", "🚚 Suppliers", "🎁 Loyalty", "⚙️ Settings"])
+    page = st.radio("Navigate", ["📊 Dashboard", "📦 Inventory", "💰 Sales Report", "🚚 Suppliers", "🎁 Loyalty"])
     st.divider()
     st.markdown(f"**Date:** {datetime.now().strftime('%d %b %Y')}")
     st.markdown("**Shop:** Pehesara Grocery")
-
-# ─── INIT ──────────────────────────────────────────────────────
-init_db()
-conn = get_conn()
 
 # ══════════════════════════════════════════════════════════════
 # 📊 DASHBOARD
@@ -163,15 +135,14 @@ if page == "📊 Dashboard":
     st.title("📊 Dashboard")
     st.caption(f"Good morning! Here's your shop summary for {datetime.now().strftime('%A, %d %B %Y')}")
 
-    # Metrics
     today = datetime.now().strftime("%Y-%m-%d")
-    today_sales = pd.read_sql(f"SELECT SUM(total) as total, COUNT(*) as count FROM sales WHERE date='{today}'", conn)
-    total_items = pd.read_sql("SELECT COUNT(*) as count FROM inventory", conn)["count"][0]
-    low_stock = pd.read_sql("SELECT COUNT(*) as count FROM inventory WHERE stock < min_stock", conn)["count"][0]
-    total_customers = pd.read_sql("SELECT COUNT(*) as count FROM customers", conn)["count"][0]
+    today_sales = supabase.table("sales").select("total").eq("date", today).execute()
+    today_revenue = sum([r["total"] for r in today_sales.data]) if today_sales.data else 0
+    today_count = len(today_sales.data)
 
-    today_revenue = today_sales["total"][0] or 12450
-    today_count = today_sales["count"][0] or 87
+    all_inv = supabase.table("inventory").select("*").execute().data
+    low_stock = [i for i in all_inv if i["stock"] < i["min_stock"]]
+    all_customers = supabase.table("customers").select("id").execute().data
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -182,41 +153,37 @@ if page == "📊 Dashboard":
         <div class="metric-value">{today_count}</div></div>""", unsafe_allow_html=True)
     with col3:
         st.markdown(f"""<div class="metric-card"><div class="metric-label">Low Stock Items</div>
-        <div class="metric-value" style="color:#FF6B35">{low_stock}</div></div>""", unsafe_allow_html=True)
+        <div class="metric-value" style="color:#FF6B35">{len(low_stock)}</div></div>""", unsafe_allow_html=True)
     with col4:
         st.markdown(f"""<div class="metric-card"><div class="metric-label">Total Customers</div>
-        <div class="metric-value" style="color:#A78BFA">{total_customers}</div></div>""", unsafe_allow_html=True)
+        <div class="metric-value" style="color:#A78BFA">{len(all_customers)}</div></div>""", unsafe_allow_html=True)
 
     st.divider()
 
-    # Alerts
     st.subheader("⚠️ AI Alerts")
-    low_items = pd.read_sql("SELECT name, stock, min_stock FROM inventory WHERE stock < min_stock", conn)
-    if not low_items.empty:
-        for _, row in low_items.iterrows():
-            st.markdown(f"""<div class="alert-box">🔴 <b>{row['name']}</b> — Stock low! ({row['stock']} remaining, min: {row['min_stock']}). Consider reordering.</div>""", unsafe_allow_html=True)
+    if low_stock:
+        for item in low_stock:
+            st.markdown(f"""<div class="alert-box">🔴 <b>{item['name']}</b> — Stock low! ({item['stock']} remaining, min: {item['min_stock']}). Consider reordering.</div>""", unsafe_allow_html=True)
     else:
         st.markdown("""<div class="success-box">✅ All stock levels are sufficient!</div>""", unsafe_allow_html=True)
 
     st.divider()
 
-    # Weekly Chart
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("📈 Weekly Earnings")
-        weekly = pd.read_sql("""
-            SELECT date, SUM(total) as revenue
-            FROM sales
-            WHERE date >= date('now', '-7 days')
-            GROUP BY date ORDER BY date
-        """, conn)
-        if not weekly.empty:
-            st.bar_chart(weekly.set_index("date")["revenue"])
+        all_sales = supabase.table("sales").select("date,total").execute().data
+        if all_sales:
+            df = pd.DataFrame(all_sales)
+            df["date"] = pd.to_datetime(df["date"])
+            weekly = df[df["date"] >= datetime.now() - timedelta(days=7)]
+            if not weekly.empty:
+                st.bar_chart(weekly.groupby("date")["total"].sum())
 
     with col2:
-        st.subheader("🤖 AI Demand Predictions (Next 7 days)")
-        inv = pd.read_sql("SELECT name FROM inventory", conn)
-        pred_df = pd.DataFrame([{"Item": i, "Predicted Units (7 days)": predict_demand(i)} for i in inv["name"]])
+        st.subheader("🤖 AI Demand Predictions (7 days)")
+        inv_names = [i["name"] for i in all_inv]
+        pred_df = pd.DataFrame([{"Item": n, "Predicted Units": predict_demand(n)} for n in inv_names])
         st.dataframe(pred_df, use_container_width=True, hide_index=True)
 
 # ══════════════════════════════════════════════════════════════
@@ -224,28 +191,22 @@ if page == "📊 Dashboard":
 # ══════════════════════════════════════════════════════════════
 elif page == "📦 Inventory":
     st.title("📦 Inventory Management")
-
-    tab1, tab2 = st.tabs(["📋 View Stock", "➕ Add / Update Item"])
+    tab1, tab2 = st.tabs(["📋 View Stock", "➕ Add Item"])
 
     with tab1:
-        inventory = pd.read_sql("SELECT * FROM inventory", conn)
-        inventory["Status"] = inventory.apply(
-            lambda r: "🔴 Low" if r["stock"] < r["min_stock"] else "🟢 OK", axis=1)
-        inventory["Stock %"] = (inventory["stock"] / inventory["max_stock"] * 100).round(0).astype(int)
-
-        filter_status = st.selectbox("Filter by Status", ["All", "Low Stock Only", "OK Only"])
-        if filter_status == "Low Stock Only":
-            inventory = inventory[inventory["Status"] == "🔴 Low"]
-        elif filter_status == "OK Only":
-            inventory = inventory[inventory["Status"] == "🟢 OK"]
-
-        st.dataframe(
-            inventory[["name", "category", "stock", "min_stock", "max_stock", "price", "supplier", "Status", "Stock %"]],
-            use_container_width=True, hide_index=True
-        )
+        inv_data = supabase.table("inventory").select("*").execute().data
+        if inv_data:
+            df = pd.DataFrame(inv_data)
+            df["Status"] = df.apply(lambda r: "🔴 Low" if r["stock"] < r["min_stock"] else "🟢 OK", axis=1)
+            df["Stock %"] = (df["stock"] / df["max_stock"] * 100).round(0).astype(int)
+            filter_s = st.selectbox("Filter", ["All", "Low Stock Only", "OK Only"])
+            if filter_s == "Low Stock Only":
+                df = df[df["Status"] == "🔴 Low"]
+            elif filter_s == "OK Only":
+                df = df[df["Status"] == "🟢 OK"]
+            st.dataframe(df[["name", "category", "stock", "min_stock", "max_stock", "price", "supplier", "Status", "Stock %"]], use_container_width=True, hide_index=True)
 
     with tab2:
-        st.subheader("Add New Item")
         with st.form("add_item"):
             col1, col2 = st.columns(2)
             with col1:
@@ -258,14 +219,10 @@ elif page == "📦 Inventory":
                 price = st.number_input("Selling Price (Rs.)", min_value=0.0, value=100.0)
                 cost = st.number_input("Cost Price (Rs.)", min_value=0.0, value=80.0)
                 supplier = st.text_input("Supplier")
-
-            submitted = st.form_submit_button("➕ Add Item", use_container_width=True)
-            if submitted and name:
-                c = conn.cursor()
-                c.execute("INSERT INTO inventory (name,category,stock,min_stock,max_stock,price,cost,unit,supplier) VALUES (?,?,?,?,?,?,?,?,?)",
-                          (name, category, stock, min_stock, max_stock, price, cost, "units", supplier))
-                conn.commit()
-                st.success(f"✅ '{name}' added successfully!")
+            if st.form_submit_button("➕ Add Item", use_container_width=True) and name:
+                supabase.table("inventory").insert({"name": name, "category": category, "stock": stock, "min_stock": min_stock, "max_stock": max_stock, "price": price, "cost": cost, "unit": "units", "supplier": supplier}).execute()
+                st.success(f"✅ '{name}' added!")
+                st.rerun()
 
 # ══════════════════════════════════════════════════════════════
 # 💰 SALES REPORT
@@ -273,108 +230,107 @@ elif page == "📦 Inventory":
 elif page == "💰 Sales Report":
     st.title("💰 Sales Report & Analytics")
 
-    # Summary metrics
-    total_revenue = pd.read_sql("SELECT SUM(total) as t FROM sales", conn)["t"][0] or 0
-    week_revenue = pd.read_sql("SELECT SUM(total) as t FROM sales WHERE date >= date('now', '-7 days')", conn)["t"][0] or 0
-    month_revenue = pd.read_sql("SELECT SUM(total) as t FROM sales WHERE date >= date('now', '-30 days')", conn)["t"][0] or 0
+    all_sales = supabase.table("sales").select("*").execute().data
+    df_sales = pd.DataFrame(all_sales) if all_sales else pd.DataFrame()
+
+    week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+    month_ago = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+
+    week_rev = df_sales[df_sales["date"] >= week_ago]["total"].sum() if not df_sales.empty else 0
+    month_rev = df_sales[df_sales["date"] >= month_ago]["total"].sum() if not df_sales.empty else 0
+    total_rev = df_sales["total"].sum() if not df_sales.empty else 0
 
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown(f"""<div class="metric-card"><div class="metric-label">This Week</div>
-        <div class="metric-value" style="color:#00E5BE">Rs. {week_revenue:,.0f}</div></div>""", unsafe_allow_html=True)
+        <div class="metric-value" style="color:#00E5BE">Rs. {week_rev:,.0f}</div></div>""", unsafe_allow_html=True)
     with col2:
         st.markdown(f"""<div class="metric-card"><div class="metric-label">This Month</div>
-        <div class="metric-value" style="color:#A78BFA">Rs. {month_revenue:,.0f}</div></div>""", unsafe_allow_html=True)
+        <div class="metric-value" style="color:#A78BFA">Rs. {month_rev:,.0f}</div></div>""", unsafe_allow_html=True)
     with col3:
         st.markdown(f"""<div class="metric-card"><div class="metric-label">All Time</div>
-        <div class="metric-value">Rs. {total_revenue:,.0f}</div></div>""", unsafe_allow_html=True)
+        <div class="metric-value">Rs. {total_rev:,.0f}</div></div>""", unsafe_allow_html=True)
 
     st.divider()
-
     col1, col2 = st.columns(2)
     with col1:
-        st.subheader("📊 Daily Revenue (Last 30 days)")
-        daily = pd.read_sql("""
-            SELECT date, SUM(total) as revenue
-            FROM sales GROUP BY date ORDER BY date DESC LIMIT 30
-        """, conn)
-        st.line_chart(daily.set_index("date")["revenue"])
+        st.subheader("📊 Daily Revenue")
+        if not df_sales.empty:
+            daily = df_sales.groupby("date")["total"].sum().sort_index()
+            st.line_chart(daily)
 
     with col2:
         st.subheader("🏆 Top Selling Items")
-        top_items = pd.read_sql("""
-            SELECT item_name, SUM(quantity) as units, SUM(total) as revenue
-            FROM sales GROUP BY item_name ORDER BY revenue DESC
-        """, conn)
-        st.dataframe(top_items, use_container_width=True, hide_index=True)
+        if not df_sales.empty:
+            top = df_sales.groupby("item_name").agg({"quantity": "sum", "total": "sum"}).reset_index()
+            top.columns = ["Item", "Units Sold", "Revenue (Rs.)"]
+            st.dataframe(top.sort_values("Revenue (Rs.)", ascending=False), use_container_width=True, hide_index=True)
 
     st.subheader("➕ Record New Sale")
-    with st.form("record_sale"):
-        inv_items = pd.read_sql("SELECT name, price FROM inventory", conn)
-        col1, col2 = st.columns(2)
-        with col1:
-            item = st.selectbox("Item", inv_items["name"].tolist())
-            qty = st.number_input("Quantity", min_value=1, value=1)
-        with col2:
-            price = inv_items[inv_items["name"] == item]["price"].values[0] if len(inv_items) > 0 else 0
-            st.metric("Unit Price", f"Rs. {price:.0f}")
-            st.metric("Total", f"Rs. {price * qty:.0f}")
-
-        if st.form_submit_button("💾 Record Sale", use_container_width=True):
-            c = conn.cursor()
-            c.execute("INSERT INTO sales (item_name, quantity, total, date) VALUES (?,?,?,?)",
-                      (item, qty, price * qty, datetime.now().strftime("%Y-%m-%d")))
-            c.execute("UPDATE inventory SET stock = stock - ? WHERE name = ?", (qty, item))
-            conn.commit()
-            st.success(f"✅ Sale recorded! Rs. {price * qty:.0f}")
+    inv_data = supabase.table("inventory").select("name,price,stock,id").execute().data
+    if inv_data:
+        with st.form("record_sale"):
+            item_names = [i["name"] for i in inv_data]
+            col1, col2 = st.columns(2)
+            with col1:
+                item = st.selectbox("Item", item_names)
+                qty = st.number_input("Quantity", min_value=1, value=1)
+            with col2:
+                selected_item = next((i for i in inv_data if i["name"] == item), None)
+                price = selected_item["price"] if selected_item else 0
+                st.metric("Unit Price", f"Rs. {price:.0f}")
+                st.metric("Total", f"Rs. {price * qty:.0f}")
+            if st.form_submit_button("💾 Record Sale", use_container_width=True):
+                supabase.table("sales").insert({"item_name": item, "quantity": qty, "total": price * qty, "date": datetime.now().strftime("%Y-%m-%d")}).execute()
+                new_stock = (selected_item["stock"] - qty)
+                supabase.table("inventory").update({"stock": new_stock}).eq("id", selected_item["id"]).execute()
+                st.success(f"✅ Sale recorded! Rs. {price * qty:.0f}")
+                st.rerun()
 
 # ══════════════════════════════════════════════════════════════
 # 🚚 SUPPLIERS
 # ══════════════════════════════════════════════════════════════
 elif page == "🚚 Suppliers":
     st.title("🚚 Supplier Management")
-
-    st.markdown("""<div class="success-box">🤖 AI Auto-Order: Enabled — Low stock items will trigger automatic order suggestions</div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="success-box">🤖 AI Auto-Order: Enabled</div>""", unsafe_allow_html=True)
 
     st.subheader("⚠️ AI Suggested Orders")
-    low = pd.read_sql("""
-        SELECT name, stock, min_stock, max_stock, supplier,
-               (max_stock - stock) as order_qty
-        FROM inventory WHERE stock < min_stock
-    """, conn)
-    if not low.empty:
-        for _, row in low.iterrows():
-            col1, col2, col3 = st.columns([3, 1, 1])
+    inv_data = supabase.table("inventory").select("*").execute().data
+    low = [i for i in inv_data if i["stock"] < i["min_stock"]]
+
+    if low:
+        for item in low:
+            order_qty = item["max_stock"] - item["stock"]
+            col1, col2 = st.columns([4, 1])
             with col1:
-                st.markdown(f"""<div class="alert-box">📦 <b>{row['name']}</b> — Order {row['order_qty']} units from {row['supplier']}</div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div class="alert-box">📦 <b>{item['name']}</b> — Order {order_qty} units from {item['supplier']}</div>""", unsafe_allow_html=True)
             with col2:
-                if st.button(f"✅ Confirm", key=f"order_{row['name']}"):
-                    c = conn.cursor()
-                    c.execute("UPDATE inventory SET stock = max_stock WHERE name = ?", (row["name"],))
-                    conn.commit()
+                if st.button("✅ Order", key=f"order_{item['id']}"):
+                    supabase.table("inventory").update({"stock": item["max_stock"]}).eq("id", item["id"]).execute()
                     st.success("Ordered!")
+                    st.rerun()
     else:
-        st.markdown("""<div class="success-box">✅ No urgent orders needed right now!</div>""", unsafe_allow_html=True)
+        st.markdown("""<div class="success-box">✅ No urgent orders needed!</div>""", unsafe_allow_html=True)
 
     st.divider()
     st.subheader("📋 All Suppliers")
-    suppliers = pd.read_sql("SELECT * FROM suppliers", conn)
-    st.dataframe(suppliers[["name", "phone", "email", "items"]], use_container_width=True, hide_index=True)
+    sup_data = supabase.table("suppliers").select("*").execute().data
+    if sup_data:
+        st.dataframe(pd.DataFrame(sup_data)[["name", "phone", "email", "items"]], use_container_width=True, hide_index=True)
 
     st.subheader("➕ Add Supplier")
     with st.form("add_supplier"):
         col1, col2 = st.columns(2)
         with col1:
-            s_name = st.text_input("Supplier Name")
+            s_name = st.text_input("Name")
             s_phone = st.text_input("Phone")
         with col2:
             s_email = st.text_input("Email")
             s_items = st.text_input("Items Supplied")
-        if st.form_submit_button("➕ Add Supplier", use_container_width=True) and s_name:
-            c = conn.cursor()
-            c.execute("INSERT INTO suppliers (name,phone,email,items) VALUES (?,?,?,?)", (s_name, s_phone, s_email, s_items))
-            conn.commit()
+        if st.form_submit_button("➕ Add", use_container_width=True) and s_name:
+            supabase.table("suppliers").insert({"name": s_name, "phone": s_phone, "email": s_email, "items": s_items}).execute()
             st.success(f"✅ {s_name} added!")
+            st.rerun()
 
 # ══════════════════════════════════════════════════════════════
 # 🎁 LOYALTY
@@ -382,26 +338,28 @@ elif page == "🚚 Suppliers":
 elif page == "🎁 Loyalty":
     st.title("🎁 Customer Loyalty System")
 
-    total_customers = pd.read_sql("SELECT COUNT(*) as c FROM customers", conn)["c"][0]
-    total_points = pd.read_sql("SELECT SUM(points) as p FROM customers", conn)["p"][0] or 0
-    total_spent = pd.read_sql("SELECT SUM(total_spent) as t FROM customers", conn)["t"][0] or 0
+    cust_data = supabase.table("customers").select("*").execute().data
+    df_cust = pd.DataFrame(cust_data) if cust_data else pd.DataFrame()
+
+    total_points = df_cust["points"].sum() if not df_cust.empty else 0
+    total_spent = df_cust["total_spent"].sum() if not df_cust.empty else 0
 
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown(f"""<div class="metric-card"><div class="metric-label">Total Customers</div>
-        <div class="metric-value" style="color:#00E5BE">{total_customers}</div></div>""", unsafe_allow_html=True)
+        <div class="metric-value" style="color:#00E5BE">{len(cust_data)}</div></div>""", unsafe_allow_html=True)
     with col2:
         st.markdown(f"""<div class="metric-card"><div class="metric-label">Points Issued</div>
-        <div class="metric-value" style="color:#A78BFA">{total_points:,}</div></div>""", unsafe_allow_html=True)
+        <div class="metric-value" style="color:#A78BFA">{int(total_points):,}</div></div>""", unsafe_allow_html=True)
     with col3:
         st.markdown(f"""<div class="metric-card"><div class="metric-label">Total Revenue</div>
         <div class="metric-value">Rs. {total_spent:,.0f}</div></div>""", unsafe_allow_html=True)
 
     st.divider()
     st.subheader("🏆 Customer Leaderboard")
-    customers = pd.read_sql("SELECT name, phone, points, total_spent FROM customers ORDER BY points DESC", conn)
-    customers["Badge"] = customers["points"].apply(lambda p: "🥇 Gold" if p > 1000 else "🥈 Silver" if p > 700 else "🥉 Bronze" if p > 400 else "⭐ Member")
-    st.dataframe(customers, use_container_width=True, hide_index=True)
+    if not df_cust.empty:
+        df_cust["Badge"] = df_cust["points"].apply(lambda p: "🥇 Gold" if p > 1000 else "🥈 Silver" if p > 700 else "🥉 Bronze" if p > 400 else "⭐ Member")
+        st.dataframe(df_cust[["name", "phone", "points", "total_spent", "Badge"]].sort_values("points", ascending=False), use_container_width=True, hide_index=True)
 
     st.divider()
     col1, col2 = st.columns(2)
@@ -410,41 +368,22 @@ elif page == "🎁 Loyalty":
         with st.form("add_customer"):
             c_name = st.text_input("Name")
             c_phone = st.text_input("Phone")
-            if st.form_submit_button("Add Customer", use_container_width=True) and c_name:
-                c = conn.cursor()
-                c.execute("INSERT INTO customers (name,phone,points,total_spent,joined_date) VALUES (?,?,?,?,?)",
-                          (c_name, c_phone, 0, 0, datetime.now().strftime("%Y-%m-%d")))
-                conn.commit()
+            if st.form_submit_button("Add", use_container_width=True) and c_name:
+                supabase.table("customers").insert({"name": c_name, "phone": c_phone, "points": 0, "total_spent": 0, "joined_date": datetime.now().strftime("%Y-%m-%d")}).execute()
                 st.success(f"✅ {c_name} added!")
+                st.rerun()
 
     with col2:
         st.subheader("🎁 Add Points")
         with st.form("add_points"):
-            customer_list = pd.read_sql("SELECT name FROM customers", conn)["name"].tolist()
-            selected = st.selectbox("Customer", customer_list)
+            c_names = [c["name"] for c in cust_data] if cust_data else []
+            selected = st.selectbox("Customer", c_names) if c_names else None
             purchase = st.number_input("Purchase Amount (Rs.)", min_value=0, value=500)
             points_earn = purchase // 10
             st.info(f"Will earn: {points_earn} points")
-            if st.form_submit_button("Add Points", use_container_width=True):
-                c = conn.cursor()
-                c.execute("UPDATE customers SET points = points + ?, total_spent = total_spent + ? WHERE name = ?",
-                          (points_earn, purchase, selected))
-                conn.commit()
-                st.success(f"✅ {points_earn} points added to {selected}!")
-
-# ══════════════════════════════════════════════════════════════
-# ⚙️ SETTINGS
-# ══════════════════════════════════════════════════════════════
-elif page == "⚙️ Settings":
-    st.title("⚙️ Settings")
-    st.subheader("Shop Information")
-    with st.form("settings"):
-        shop_name = st.text_input("Shop Name", value="Pehesara Grocery")
-        owner = st.text_input("Owner Name", value="Rithma Pehesara")
-        points_rate = st.number_input("Points per Rs. 10 spent", value=1)
-        low_stock_alert = st.toggle("Enable Low Stock Alerts", value=True)
-        auto_order = st.toggle("Enable AI Auto-Order Suggestions", value=True)
-        if st.form_submit_button("💾 Save Settings", use_container_width=True):
-            st.success("✅ Settings saved!")
-
-conn.close()
+            if st.form_submit_button("Add Points", use_container_width=True) and selected:
+                cust = next((c for c in cust_data if c["name"] == selected), None)
+                if cust:
+                    supabase.table("customers").update({"points": cust["points"] + points_earn, "total_spent": cust["total_spent"] + purchase}).eq("id", cust["id"]).execute()
+                    st.success(f"✅ {points_earn} points added to {selected}!")
+                    st.rerun()
