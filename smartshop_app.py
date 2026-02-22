@@ -297,6 +297,33 @@ elif page == "💰 Sales Report":
             top.columns = ["Item", "Units Sold", "Revenue (Rs.)"]
             st.dataframe(top.sort_values("Revenue (Rs.)", ascending=False), use_container_width=True, hide_index=True)
 
+    st.divider()
+    col_del, col_upd = st.columns(2)
+    with col_del:
+        st.subheader("🗑️ Delete Sale")
+        sales_del = supabase.table("sales").select("id,item_name,date,total").execute().data
+        if sales_del:
+            sale_options = [f"{s['item_name']} | {s['date']} | Rs.{s['total']}" for s in sales_del]
+            del_sale = st.selectbox("Sale select කරන්න", sale_options, key="del_sale")
+            if st.button("🗑️ Delete Sale", type="primary", use_container_width=True):
+                del_idx = sale_options.index(del_sale)
+                del_id = sales_del[del_idx]["id"]
+                supabase.table("sales").delete().eq("id", del_id).execute()
+                st.success("✅ Sale deleted!")
+                st.rerun()
+    with col_upd:
+        st.subheader("✏️ Update Sale")
+        if sales_del:
+            upd_sale = st.selectbox("Sale select කරන්න", sale_options, key="upd_sale")
+            upd_idx = sale_options.index(upd_sale)
+            selected_sale = sales_del[upd_idx]
+            new_qty = st.number_input("Quantity", min_value=1, value=selected_sale["quantity"] if "quantity" in selected_sale else 1, key="upd_qty")
+            new_total = st.number_input("Total (Rs.)", min_value=0.0, value=float(selected_sale["total"]), key="upd_total")
+            if st.button("✏️ Update Sale", use_container_width=True):
+                supabase.table("sales").update({"quantity": new_qty, "total": new_total}).eq("id", selected_sale["id"]).execute()
+                st.success("✅ Sale updated!")
+                st.rerun()
+
     st.subheader("➕ Record New Sale")
     inv_data = supabase.table("inventory").select("name,price,stock,id").execute().data
     if inv_data:
@@ -349,6 +376,34 @@ elif page == "🚚 Suppliers":
     if sup_data:
         st.dataframe(pd.DataFrame(sup_data)[["name", "phone", "email", "items"]], use_container_width=True, hide_index=True)
 
+    st.divider()
+    col_del, col_upd = st.columns(2)
+    with col_del:
+        st.subheader("🗑️ Delete Supplier")
+        sup_del = supabase.table("suppliers").select("*").execute().data
+        if sup_del:
+            sup_names = [s["name"] for s in sup_del]
+            del_sup = st.selectbox("Supplier select කරන්න", sup_names, key="del_sup")
+            if st.button("🗑️ Delete Supplier", type="primary", use_container_width=True):
+                del_id = next((s["id"] for s in sup_del if s["name"] == del_sup), None)
+                if del_id:
+                    supabase.table("suppliers").delete().eq("id", del_id).execute()
+                    st.success(f"✅ '{del_sup}' deleted!")
+                    st.rerun()
+    with col_upd:
+        st.subheader("✏️ Update Supplier")
+        if sup_del:
+            upd_sup = st.selectbox("Supplier select කරන්න", [s["name"] for s in sup_del], key="upd_sup")
+            sel_sup = next((s for s in sup_del if s["name"] == upd_sup), None)
+            if sel_sup:
+                new_phone = st.text_input("Phone", value=sel_sup["phone"] or "", key="upd_sup_phone")
+                new_email = st.text_input("Email", value=sel_sup["email"] or "", key="upd_sup_email")
+                new_items = st.text_input("Items", value=sel_sup["items"] or "", key="upd_sup_items")
+                if st.button("✏️ Update Supplier", use_container_width=True):
+                    supabase.table("suppliers").update({"phone": new_phone, "email": new_email, "items": new_items}).eq("id", sel_sup["id"]).execute()
+                    st.success(f"✅ '{upd_sup}' updated!")
+                    st.rerun()
+
     st.subheader("➕ Add Supplier")
     with st.form("add_supplier"):
         col1, col2 = st.columns(2)
@@ -391,6 +446,33 @@ elif page == "🎁 Loyalty":
     if not df_cust.empty:
         df_cust["Badge"] = df_cust["points"].apply(lambda p: "🥇 Gold" if p > 1000 else "🥈 Silver" if p > 700 else "🥉 Bronze" if p > 400 else "⭐ Member")
         st.dataframe(df_cust[["name", "phone", "points", "total_spent", "Badge"]].sort_values("points", ascending=False), use_container_width=True, hide_index=True)
+
+    st.divider()
+    col_del, col_upd = st.columns(2)
+    with col_del:
+        st.subheader("🗑️ Delete Customer")
+        cust_del = supabase.table("customers").select("*").execute().data
+        if cust_del:
+            cust_del_names = [c["name"] for c in cust_del]
+            del_cust = st.selectbox("Customer select කරන්න", cust_del_names, key="del_cust")
+            if st.button("🗑️ Delete Customer", type="primary", use_container_width=True):
+                del_id = next((c["id"] for c in cust_del if c["name"] == del_cust), None)
+                if del_id:
+                    supabase.table("customers").delete().eq("id", del_id).execute()
+                    st.success(f"✅ '{del_cust}' deleted!")
+                    st.rerun()
+    with col_upd:
+        st.subheader("✏️ Update Customer")
+        if cust_del:
+            upd_cust = st.selectbox("Customer select කරන්න", [c["name"] for c in cust_del], key="upd_cust")
+            sel_cust = next((c for c in cust_del if c["name"] == upd_cust), None)
+            if sel_cust:
+                new_phone = st.text_input("Phone", value=sel_cust["phone"] or "", key="upd_cust_phone")
+                new_points = st.number_input("Points", min_value=0, value=sel_cust["points"], key="upd_cust_points")
+                if st.button("✏️ Update Customer", use_container_width=True):
+                    supabase.table("customers").update({"phone": new_phone, "points": new_points}).eq("id", sel_cust["id"]).execute()
+                    st.success(f"✅ '{upd_cust}' updated!")
+                    st.rerun()
 
     st.divider()
     col1, col2 = st.columns(2)
