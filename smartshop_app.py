@@ -171,69 +171,70 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Bottom Nav using Streamlit buttons
+# Bottom Nav
 st.markdown("""
 <style>
-.bottom-nav-container {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    background: #111827;
-    border-top: 1px solid #1E293B;
-    border-radius: 20px 20px 0 0;
-    z-index: 9999;
-    padding: 8px 0 16px;
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
-}
-.main .block-container { padding-bottom: 100px !important; }
+.main .block-container { padding-bottom: 110px !important; }
 
-/* Style nav buttons */
-div[data-testid="stHorizontalBlock"] button {
+/* iPhone style bottom bar */
+section[data-testid="stBottom"] {
+    background: rgba(17,24,39,0.95) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-top: 1px solid #1E293B !important;
+    border-radius: 24px 24px 0 0 !important;
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.5) !important;
+    padding: 8px 12px 20px !important;
+}
+section[data-testid="stBottom"] button {
     background: transparent !important;
     border: none !important;
     color: #64748B !important;
-    font-size: 11px !important;
-    padding: 6px 4px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.3px !important;
+    padding: 8px 4px !important;
+    border-radius: 14px !important;
+    transition: all 0.15s ease !important;
     width: 100% !important;
-    border-radius: 12px !important;
-    transition: all 0.2s !important;
 }
-div[data-testid="stHorizontalBlock"] button:hover {
-    background: rgba(0,229,190,0.1) !important;
+section[data-testid="stBottom"] button:hover {
+    background: rgba(0,229,190,0.12) !important;
     color: #00E5BE !important;
+    transform: scale(1.05) !important;
+}
+section[data-testid="stBottom"] button p {
+    font-size: 10px !important;
+    font-weight: 600 !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
 page = st.session_state.page
 
-# Fixed bottom nav
-with st.container():
-    st.markdown('<div class="bottom-nav-container">', unsafe_allow_html=True)
+# iPhone style bottom nav bar
+with st.container(key="bottom_nav"):
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
-        if st.button("📊 Home", use_container_width=True, key="nav1"):
+        if st.button("📊\nHome", use_container_width=True, key="nav1"):
             st.session_state.page = "📊 Dashboard"
             st.rerun()
     with c2:
-        if st.button("📦 Stock", use_container_width=True, key="nav2"):
+        if st.button("📦\nStock", use_container_width=True, key="nav2"):
             st.session_state.page = "📦 Inventory"
             st.rerun()
     with c3:
-        if st.button("💰 Sales", use_container_width=True, key="nav3"):
+        if st.button("💰\nSales", use_container_width=True, key="nav3"):
             st.session_state.page = "💰 Sales Report"
             st.rerun()
     with c4:
-        if st.button("🚚 Order", use_container_width=True, key="nav4"):
+        if st.button("🚚\nOrder", use_container_width=True, key="nav4"):
             st.session_state.page = "🚚 Suppliers"
             st.rerun()
     with c5:
-        if st.button("🎁 Loyal", use_container_width=True, key="nav5"):
+        if st.button("🎁\nLoyal", use_container_width=True, key="nav5"):
             st.session_state.page = "🎁 Loyalty"
             st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════
 # 📊 DASHBOARD
