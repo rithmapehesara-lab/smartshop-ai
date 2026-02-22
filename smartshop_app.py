@@ -163,7 +163,7 @@ if "page" not in st.session_state:
 
 # Top header
 st.markdown(f"""
-<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 16px;">
+<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 8px;">
     <div>
         <div style="font-size:22px;font-weight:800;color:#00E5BE;">🛒 SmartShop AI</div>
         <div style="font-size:11px;color:#64748B;">{datetime.now().strftime('%A, %d %B %Y')} · Pehesara Grocery</div>
@@ -171,29 +171,79 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Bottom Nav
-pages = [
-    ("📊", "Dashboard", "📊 Dashboard"),
-    ("📦", "Inventory", "📦 Inventory"),
-    ("💰", "Sales", "💰 Sales Report"),
-    ("🚚", "Suppliers", "🚚 Suppliers"),
-    ("🎁", "Loyalty", "🎁 Loyalty"),
-]
+# Bottom Nav using Streamlit buttons
+st.markdown("""
+<style>
+.bottom-nav-container {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #111827;
+    border-top: 1px solid #1E293B;
+    border-radius: 20px 20px 0 0;
+    z-index: 9999;
+    padding: 8px 0 16px;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+}
+.main .block-container { padding-bottom: 100px !important; }
 
-nav_html = '<div class="bottom-nav">'
-for icon, label, key in pages:
-    active_class = "active" if st.session_state.page == key else ""
-    nav_html += f'<div class="nav-btn {active_class}" onclick="">{icon}<span>{label}</span></div>'
-nav_html += "</div>"
-st.markdown(nav_html, unsafe_allow_html=True)
+/* Style nav buttons */
+div[data-testid="stHorizontalBlock"] button {
+    background: transparent !important;
+    border: none !important;
+    color: #64748B !important;
+    font-size: 11px !important;
+    padding: 6px 4px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    width: 100% !important;
+    border-radius: 12px !important;
+    transition: all 0.2s !important;
+}
+div[data-testid="stHorizontalBlock"] button:hover {
+    background: rgba(0,229,190,0.1) !important;
+    color: #00E5BE !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
-# Hidden radio for actual navigation
-page = st.radio("nav", [p[2] for p in pages], key="page", label_visibility="hidden")
+page = st.session_state.page
+
+# Fixed bottom nav
+with st.container():
+    st.markdown('<div class="bottom-nav-container">', unsafe_allow_html=True)
+    c1, c2, c3, c4, c5 = st.columns(5)
+    with c1:
+        if st.button("📊
+Home", use_container_width=True, key="nav1"):
+            st.session_state.page = "📊 Dashboard"
+            st.rerun()
+    with c2:
+        if st.button("📦
+Stock", use_container_width=True, key="nav2"):
+            st.session_state.page = "📦 Inventory"
+            st.rerun()
+    with c3:
+        if st.button("💰
+Sales", use_container_width=True, key="nav3"):
+            st.session_state.page = "💰 Sales Report"
+            st.rerun()
+    with c4:
+        if st.button("🚚
+Order", use_container_width=True, key="nav4"):
+            st.session_state.page = "🚚 Suppliers"
+            st.rerun()
+    with c5:
+        if st.button("🎁
+Loyal", use_container_width=True, key="nav5"):
+            st.session_state.page = "🎁 Loyalty"
+            st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════
 # 📊 DASHBOARD
 # ══════════════════════════════════════════════════════════════
-if page == "📊 Dashboard":
+if st.session_state.page == "📊 Dashboard":
     st.title("📊 Dashboard")
     st.caption(f"Good morning! Here's your shop summary for {datetime.now().strftime('%A, %d %B %Y')}")
 
@@ -251,7 +301,7 @@ if page == "📊 Dashboard":
 # ══════════════════════════════════════════════════════════════
 # 📦 INVENTORY
 # ══════════════════════════════════════════════════════════════
-elif page == "📦 Inventory":
+elif st.session_state.page == "📦 Inventory":
     st.title("📦 Inventory Management")
     tab1, tab2 = st.tabs(["📋 View Stock", "➕ Add Item"])
 
@@ -320,7 +370,7 @@ elif page == "📦 Inventory":
 # ══════════════════════════════════════════════════════════════
 # 💰 SALES REPORT
 # ══════════════════════════════════════════════════════════════
-elif page == "💰 Sales Report":
+elif st.session_state.page == "💰 Sales Report":
     st.title("💰 Sales Report & Analytics")
 
     all_sales = supabase.table("sales").select("*").execute().data
@@ -410,7 +460,7 @@ elif page == "💰 Sales Report":
 # ══════════════════════════════════════════════════════════════
 # 🚚 SUPPLIERS
 # ══════════════════════════════════════════════════════════════
-elif page == "🚚 Suppliers":
+elif st.session_state.page == "🚚 Suppliers":
     st.title("🚚 Supplier Management")
     st.markdown("""<div class="success-box">🤖 AI Auto-Order: Enabled</div>""", unsafe_allow_html=True)
 
@@ -483,7 +533,7 @@ elif page == "🚚 Suppliers":
 # ══════════════════════════════════════════════════════════════
 # 🎁 LOYALTY
 # ══════════════════════════════════════════════════════════════
-elif page == "🎁 Loyalty":
+elif st.session_state.page == "🎁 Loyalty":
     st.title("🎁 Customer Loyalty System")
 
     cust_data = supabase.table("customers").select("*").execute().data
