@@ -216,11 +216,7 @@ if page == "📊 Dashboard":
     with col2:
         st.subheader("🤖 AI Demand Predictions (Next 7 days)")
         inv = pd.read_sql("SELECT name FROM inventory", conn)
-        preds = []
-        for item in inv["name"]:
-            pred = predict_demand(item)
-            preds.append({"Item": item, "Predicted Demand": pred, "Units"})
-        pred_df = pd.DataFrame([{"Item": i, "Predicted Units": predict_demand(i)} for i in inv["name"]])
+        pred_df = pd.DataFrame([{"Item": i, "Predicted Units (7 days)": predict_demand(i)} for i in inv["name"]])
         st.dataframe(pred_df, use_container_width=True, hide_index=True)
 
 # ══════════════════════════════════════════════════════════════
