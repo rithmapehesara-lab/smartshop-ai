@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 from supabase import create_client
 from datetime import datetime, timedelta
@@ -163,53 +164,13 @@ if "page" not in st.session_state:
 
 page = st.session_state.page
 
-# CSS
+# Global CSS
 st.markdown("""
 <style>
 .main .block-container { padding-bottom: 120px !important; }
 footer, header { display: none !important; }
 [data-testid="stSidebar"] { display: none !important; }
 [data-testid="collapsedControl"] { display: none !important; }
-
-/* Nav bar wrapper - fixed at bottom */
-[data-testid="stBottom"] {
-    position: fixed !important;
-    bottom: 16px !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    width: calc(100% - 32px) !important;
-    max-width: 480px !important;
-    background: rgba(13, 18, 30, 0.80) !important;
-    backdrop-filter: blur(30px) saturate(200%) !important;
-    -webkit-backdrop-filter: blur(30px) saturate(200%) !important;
-    border: 1px solid rgba(255,255,255,0.07) !important;
-    border-radius: 28px !important;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05) !important;
-    padding: 8px 8px 14px !important;
-    z-index: 99999 !important;
-}
-
-/* Nav buttons */
-[data-testid="stBottom"] button {
-    background: transparent !important;
-    border: none !important;
-    color: #4B5563 !important;
-    font-size: 11px !important;
-    font-weight: 600 !important;
-    border-radius: 18px !important;
-    padding: 8px 4px !important;
-    transition: all 0.18s ease !important;
-    width: 100% !important;
-}
-[data-testid="stBottom"] button:hover {
-    background: rgba(0,229,190,0.1) !important;
-    color: #00E5BE !important;
-    transform: scale(1.06) !important;
-}
-[data-testid="stBottom"] button p {
-    font-size: 11px !important;
-    font-weight: 600 !important;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -223,33 +184,87 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Bottom nav buttons - inside stBottom
+# iPhone liquid glass nav using JS component (no new tab!)
 nav_items = [
-    ("📊", "Home",   "📊 Dashboard"),
-    ("📦", "Stock",  "📦 Inventory"),
-    ("💰", "Sales",  "💰 Sales Report"),
-    ("🚚", "Orders", "🚚 Suppliers"),
-    ("🎁", "Loyal",  "🎁 Loyalty"),
+    ("📊", "Home",   "dashboard"),
+    ("📦", "Stock",  "inventory"),
+    ("💰", "Sales",  "sales"),
+    ("🚚", "Orders", "suppliers"),
+    ("🎁", "Loyal",  "loyalty"),
 ]
 
-with st.container(key="nav_bar"):
-    cols = st.columns(5)
-    for i, (icon, label, target) in enumerate(nav_items):
-        is_active = page == target
-        if is_active:
-            st.markdown(f"""
-            <style>
-            [data-testid="stBottom"] > div > div > div > div:nth-child({i+1}) button {{
-                background: rgba(0,229,190,0.14) !important;
-                color: #00E5BE !important;
-                box-shadow: 0 0 14px rgba(0,229,190,0.2) !important;
-            }}
-            </style>
-            """, unsafe_allow_html=True)
-        with cols[i]:
-            if st.button(f"{icon} {label}", use_container_width=True, key=f"nav_{i}"):
-                st.session_state.page = target
-                st.rerun()
+page_key_map = {
+    "dashboard": "📊 Dashboard",
+    "inventory": "📦 Inventory",
+    "sales":     "💰 Sales Report",
+    "suppliers": "🚚 Suppliers",
+    "loyalty":   "🎁 Loyalty",
+}
+page_reverse = {v: k for k, v in page_key_map.items()}
+current_key = page_reverse.get(page, "dashboard")
+
+nav_buttons_html = ""
+for icon, label, key in nav_items:
+    active_style = "background:rgba(0,229,190,0.15);box-shadow:0 0 14px rgba(0,229,190,0.25);" if key == current_key else ""
+    active_label = "color:#00E5BE;" if key == current_key else "color:#4B5563;"
+    nav_buttons_html += f"""
+    <button onclick="navigate('{key}')" style="
+        background:transparent;border:none;cursor:pointer;
+        display:flex;flex-direction:column;align-items:center;gap:3px;
+        padding:8px 14px;border-radius:18px;transition:all 0.18s ease;
+        min-width:54px;{active_style}">
+        <span style="font-size:22px;line-height:1">{icon}</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.3px;{active_label}">{label}</span>
+    </button>"""
+
+import streamlit.components.v1 as components
+components.html(f"""
+<style>
+    body {{ margin:0; padding:0; background:transparent; }}
+    .nav-bar {{
+        position:fixed;
+        bottom:16px;
+        left:50%;
+        transform:translateX(-50%);
+        width:calc(100vw - 32px);
+        max-width:480px;
+        background:rgba(13,18,30,0.82);
+        backdrop-filter:blur(30px) saturate(200%);
+        -webkit-backdrop-filter:blur(30px) saturate(200%);
+        border:1px solid rgba(255,255,255,0.07);
+        border-radius:28px;
+        box-shadow:0 8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+        display:flex;
+        justify-content:space-around;
+        align-items:center;
+        padding:8px 8px 14px;
+        z-index:99999;
+    }}
+    button:hover {{
+        background:rgba(0,229,190,0.1) !important;
+        transform:scale(1.08) !important;
+    }}
+</style>
+<div class="nav-bar">
+    {nav_buttons_html}
+</div>
+<script>
+function navigate(page) {{
+    window.parent.location.href = window.parent.location.pathname + '?nav=' + page;
+}}
+</script>
+""", height=90)
+
+# Read nav param
+nav_param = st.query_params.get("nav", None)
+if nav_param and nav_param in page_key_map:
+    new_page = page_key_map[nav_param]
+    if new_page != st.session_state.page:
+        st.session_state.page = new_page
+        st.query_params.clear()
+        st.rerun()
+
+page = st.session_state.page
 
 # ══════════════════════════════════════════════════════════════
 # 📊 DASHBOARD
@@ -623,4 +638,3 @@ elif page == "🎁 Loyalty":
                     supabase.table("customers").update({"points": cust["points"] + points_earn, "total_spent": cust["total_spent"] + purchase}).eq("id", cust["id"]).execute()
                     st.success(f"✅ {points_earn} points added to {selected}!")
                     st.rerun()
-
