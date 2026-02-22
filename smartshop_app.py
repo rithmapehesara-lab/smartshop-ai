@@ -51,7 +51,7 @@ st.markdown("""
 
 # ─── SUPABASE CONNECTION ────────────────────────────────────────
 SUPABASE_URL = "https://ejktmvidjinjbhrypuok.supabase.co"
-SUPABASE_KEY = "sb_publishable_onBCXPVNrNlUFStRhG7bwQ_CnANRCPN"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqa3RtdmlkamluamJocnlwdW9rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3NTczMDIsImV4cCI6MjA4NzMzMzMwMn0.NyW3Co7htF_wNmA5jEpVTfWgXW2wPCI-7n5kKijCem8"
 
 @st.cache_resource
 def get_supabase():
