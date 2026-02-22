@@ -214,28 +214,23 @@ with st.container():
     st.markdown('<div class="bottom-nav-container">', unsafe_allow_html=True)
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
-        if st.button("📊
-Home", use_container_width=True, key="nav1"):
+        if st.button("📊 Home", use_container_width=True, key="nav1"):
             st.session_state.page = "📊 Dashboard"
             st.rerun()
     with c2:
-        if st.button("📦
-Stock", use_container_width=True, key="nav2"):
+        if st.button("📦 Stock", use_container_width=True, key="nav2"):
             st.session_state.page = "📦 Inventory"
             st.rerun()
     with c3:
-        if st.button("💰
-Sales", use_container_width=True, key="nav3"):
+        if st.button("💰 Sales", use_container_width=True, key="nav3"):
             st.session_state.page = "💰 Sales Report"
             st.rerun()
     with c4:
-        if st.button("🚚
-Order", use_container_width=True, key="nav4"):
+        if st.button("🚚 Order", use_container_width=True, key="nav4"):
             st.session_state.page = "🚚 Suppliers"
             st.rerun()
     with c5:
-        if st.button("🎁
-Loyal", use_container_width=True, key="nav5"):
+        if st.button("🎁 Loyal", use_container_width=True, key="nav5"):
             st.session_state.page = "🎁 Loyalty"
             st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
