@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import pandas as pd
 from supabase import create_client
 from datetime import datetime, timedelta
@@ -161,6 +160,98 @@ def predict_demand(item_name):
 # ─── NAVIGATION ────────────────────────────────────────────────
 if "page" not in st.session_state:
     st.session_state.page = "📊 Dashboard"
+
+page = st.session_state.page
+
+st.markdown("""
+<style>
+/* Hide sidebar & footer */
+[data-testid="stSidebar"], [data-testid="collapsedControl"], footer { display:none !important; }
+
+/* Sticky nav container */
+div[data-testid="stVerticalBlockBorderWrapper"]:first-of-type {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 9999 !important;
+    padding: 0 !important;
+}
+
+/* Glass nav bar bg */
+.nav-glass {
+    background: rgba(10, 15, 30, 0.88);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 22px;
+    padding: 7px 7px 7px 7px;
+    margin-bottom: 18px;
+    box-shadow: 0 4px 28px rgba(0,0,0,0.55);
+}
+
+/* All nav buttons */
+.nav-glass button {
+    background: transparent !important;
+    border: none !important;
+    color: #475569 !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    border-radius: 16px !important;
+    padding: 10px 2px !important;
+    transition: all 0.16s ease !important;
+    letter-spacing: 0.2px !important;
+}
+.nav-glass button:hover {
+    background: rgba(0,229,190,0.1) !important;
+    color: #00E5BE !important;
+}
+.nav-glass button p {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+}
+
+/* Main content padding */
+.main .block-container { padding-top: 6px !important; }
+</style>
+""", unsafe_allow_html=True)
+
+# Header
+st.markdown(f"""
+<div style="padding:10px 2px 6px;display:flex;align-items:center;gap:10px;">
+    <div>
+        <div style="font-size:21px;font-weight:800;color:#00E5BE;letter-spacing:-0.5px;">🛒 SmartShop AI</div>
+        <div style="font-size:11px;color:#475569;">{datetime.now().strftime('%A, %d %B %Y')} · Pehesara Grocery</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Nav bar
+nav_items = [
+    ("📊", "Home",   "📊 Dashboard"),
+    ("📦", "Stock",  "📦 Inventory"),
+    ("💰", "Sales",  "💰 Sales Report"),
+    ("🚚", "Orders", "🚚 Suppliers"),
+    ("🎁", "Loyal",  "🎁 Loyalty"),
+]
+
+with st.container(border=False):
+    st.markdown('<div class="nav-glass">', unsafe_allow_html=True)
+    cols = st.columns(5)
+    for i, (icon, label, target) in enumerate(nav_items):
+        is_active = page == target
+        if is_active:
+            st.markdown(f"""<style>
+            div.nav-glass > div > div > div > div > div:nth-child({i+1}) button {{
+                background: rgba(0,229,190,0.14) !important;
+                color: #00E5BE !important;
+                box-shadow: 0 0 16px rgba(0,229,190,0.22) !important;
+            }}
+            </style>""", unsafe_allow_html=True)
+        with cols[i]:
+            if st.button(f"{icon}
+{label}", use_container_width=True, key=f"nav_{i}"):
+                st.session_state.page = target
+                st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 page = st.session_state.page
 
