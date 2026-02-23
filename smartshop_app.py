@@ -96,9 +96,15 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 @st.cache_resource
 def get_supabase():
-    return create_client(SUPABASE_URL, SUPABASE_KEY)
+    import httpx
+    client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    return client
 
-supabase = get_supabase()
+try:
+    supabase = get_supabase()
+except Exception:
+    st.cache_resource.clear()
+    supabase = get_supabase()
 
 # ─── SEED DATA ─────────────────────────────────────────────────
 def seed_data():
@@ -148,7 +154,16 @@ def seed_data():
             records.append({"item_name": item, "quantity": qty, "total": qty * price, "date": date})
         supabase.table("sales").insert(records).execute()
 
-seed_data()
+import time
+for _attempt in range(3):
+    try:
+        seed_data()
+        break
+    except Exception:
+        if _attempt < 2:
+            time.sleep(2)
+        else:
+            st.warning("⚠️ Database slow — refresh page!")
 
 # ─── AI PREDICTION ──────────────────────────────────────────────
 def predict_demand(item_name):
