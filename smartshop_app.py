@@ -235,7 +235,9 @@ if page == "📊 Dashboard":
     st_autorefresh(interval=30000, key="dashboard_refresh")
 
     st.title("📊 Dashboard")
-    st.caption(f"Good morning! Here's your shop summary for {datetime.now().strftime('%A, %d %B %Y')}")
+    _hour = datetime.now().hour
+    _greeting = "🌅 Good Morning" if 5 <= _hour < 12 else "☀️ Good Afternoon" if 12 <= _hour < 17 else "🌆 Good Evening" if 17 <= _hour < 21 else "🌙 Good Night"
+    st.caption(f"{_greeting}! Here's your shop summary for {datetime.now().strftime('%A, %d %B %Y')}")
 
     today = datetime.now().strftime("%Y-%m-%d")
     today_sales = supabase.table("sales").select("total").eq("date", today).execute()
