@@ -242,72 +242,23 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Nav bar - single unified pill
-nav_labels = ["📊 Home", "📦 Stock", "💰 Sales", "🚚 Orders", "🎁 Loyal", "🤖 AI"]
-nav_targets = ["📊 Dashboard", "📦 Inventory", "💰 Sales Report", "🚚 Suppliers", "🎁 Loyalty", "🤖 AI Chat"]
-current_label = nav_labels[nav_targets.index(page)] if page in nav_targets else nav_labels[0]
-
-st.markdown("""
-<style>
-/* Hide radio circle dots */
-div[data-testid="stRadio"] > div > label > div:first-child { display: none !important; }
-
-/* Radio container - glass pill bar */
-div[data-testid="stRadio"] > div {
-    background: rgba(10, 15, 28, 0.88) !important;
-    backdrop-filter: blur(24px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
-    border: 1px solid rgba(255,255,255,0.07) !important;
-    border-radius: 28px !important;
-    padding: 6px 8px !important;
-    gap: 2px !important;
-    box-shadow: 0 4px 28px rgba(0,0,0,0.55) !important;
-    margin-bottom: 16px !important;
-    flex-wrap: nowrap !important;
-}
-
-/* Each radio option */
-div[data-testid="stRadio"] > div > label {
-    background: transparent !important;
-    border-radius: 20px !important;
-    padding: 8px 12px !important;
-    cursor: pointer !important;
-    transition: all 0.18s ease !important;
-    flex: 1 !important;
-    text-align: center !important;
-    color: #475569 !important;
-    font-size: 12px !important;
-    font-weight: 700 !important;
-}
-
-/* Hover */
-div[data-testid="stRadio"] > div > label:hover {
-    background: rgba(0,229,190,0.1) !important;
-    color: #00E5BE !important;
-}
-
-/* Active/selected */
-div[data-testid="stRadio"] > div > label[data-selected="true"],
-div[data-testid="stRadio"] > div > label:has(input:checked) {
-    background: rgba(0,229,190,0.15) !important;
-    color: #00E5BE !important;
-    box-shadow: 0 0 14px rgba(0,229,190,0.22) !important;
-}
-
-div[data-testid="stRadio"] p {
-    font-size: 12px !important;
-    font-weight: 700 !important;
-    color: inherit !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-selected_label = st.radio("nav", nav_labels, index=nav_labels.index(current_label),
-    horizontal=True, label_visibility="collapsed", key="main_nav")
-
-if nav_targets[nav_labels.index(selected_label)] != page:
-    st.session_state.page = nav_targets[nav_labels.index(selected_label)]
-    st.rerun()
+# Nav bar
+nav_items = [
+    ("📊 Home",   "📊 Dashboard"),
+    ("📦 Stock",  "📦 Inventory"),
+    ("💰 Sales",  "💰 Sales Report"),
+    ("🚚 Orders", "🚚 Suppliers"),
+    ("🎁 Loyal",  "🎁 Loyalty"),
+    ("🤖 AI",     "🤖 AI Chat"),
+]
+c1,c2,c3,c4,c5,c6 = st.columns(6)
+for col, (label, target) in zip([c1,c2,c3,c4,c5,c6], nav_items):
+    with col:
+        is_active = page == target
+        btn_type = "primary" if is_active else "secondary"
+        if st.button(label, key=f"nav_{target}", use_container_width=True, type=btn_type):
+            st.session_state.page = target
+            st.rerun()
 
 page = st.session_state.page
 
