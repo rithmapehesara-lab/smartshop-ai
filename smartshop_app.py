@@ -234,57 +234,80 @@ def fmt_money(amount_lkr):
     converted = amount_lkr * rate
     return f"{sym} {converted:,.2f}" if cur != "LKR" else f"Rs. {converted:,.0f}"
 
-# Header + settings bar
-hcol1, hcol2 = st.columns([3,1])
-with hcol1:
-    st.markdown(f"""
-    <div style="padding:8px 0 4px;">
-        <div style="font-size:21px;font-weight:800;color:#00E5BE;">🛒 SmartShop AI</div>
-        <div style="font-size:11px;color:#475569;">{datetime.now().strftime('%A, %d %B %Y')} · Pehesara Grocery</div>
-    </div>
-    """, unsafe_allow_html=True)
-with hcol2:
-    s1, s2 = st.columns(2)
-    with s1:
-        cur_sel = st.selectbox("💵", ["LKR","USD","EUR","GBP","INR"], index=["LKR","USD","EUR","GBP","INR"].index(st.session_state.currency), key="cur_sel", label_visibility="collapsed")
-        if cur_sel != st.session_state.currency:
-            st.session_state.currency = cur_sel
-            st.rerun()
-    with s2:
-        theme_btn = "🌙" if st.session_state.theme == "light" else "☀️"
-        if st.button(theme_btn, key="theme_toggle", use_container_width=True):
-            st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
-            st.rerun()
+# Header
+st.markdown(f"""
+<div style="padding:8px 0 4px;">
+    <div style="font-size:21px;font-weight:800;color:#00E5BE;">🛒 SmartShop AI</div>
+    <div style="font-size:11px;color:#475569;">{datetime.now().strftime('%A, %d %B %Y')} · Pehesara Grocery</div>
+</div>
+""", unsafe_allow_html=True)
 
-# Nav bar
-nav_items = [
-    ("📊", "Home",   "📊 Dashboard"),
-    ("📦", "Stock",  "📦 Inventory"),
-    ("💰", "Sales",  "💰 Sales Report"),
-    ("🚚", "Orders", "🚚 Suppliers"),
-    ("🎁", "Loyal",  "🎁 Loyalty"),
-    ("🤖", "AI",     "🤖 AI Chat"),
-]
+# Nav bar - single unified pill
+nav_labels = ["📊 Home", "📦 Stock", "💰 Sales", "🚚 Orders", "🎁 Loyal", "🤖 AI"]
+nav_targets = ["📊 Dashboard", "📦 Inventory", "💰 Sales Report", "🚚 Suppliers", "🎁 Loyalty", "🤖 AI Chat"]
+current_label = nav_labels[nav_targets.index(page)] if page in nav_targets else nav_labels[0]
 
-with st.container():
-    st.markdown("""<div style="background:rgba(10,15,28,0.9);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.07);border-radius:24px;padding:6px;margin-bottom:16px;box-shadow:0 4px 24px rgba(0,0,0,0.5);">""", unsafe_allow_html=True)
-    cols = st.columns(6)
-    for i, (icon, label, target) in enumerate(nav_items):
-        is_active = page == target
-        if is_active:
-            st.markdown(f"""<style>
-            div[data-testid="stHorizontalBlock"] > div:nth-child({i+1}) button {{
-                background: rgba(0,229,190,0.15) !important;
-                color: #00E5BE !important;
-                border-color: rgba(0,229,190,0.3) !important;
-                box-shadow: 0 0 14px rgba(0,229,190,0.2) !important;
-            }}
-            </style>""", unsafe_allow_html=True)
-        with cols[i]:
-            if st.button(f"{icon} {label}", use_container_width=True, key=f"nav_{i}"):
-                st.session_state.page = target
-                st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("""
+<style>
+/* Hide radio circle dots */
+div[data-testid="stRadio"] > div > label > div:first-child { display: none !important; }
+
+/* Radio container - glass pill bar */
+div[data-testid="stRadio"] > div {
+    background: rgba(10, 15, 28, 0.88) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    border: 1px solid rgba(255,255,255,0.07) !important;
+    border-radius: 28px !important;
+    padding: 6px 8px !important;
+    gap: 2px !important;
+    box-shadow: 0 4px 28px rgba(0,0,0,0.55) !important;
+    margin-bottom: 16px !important;
+    flex-wrap: nowrap !important;
+}
+
+/* Each radio option */
+div[data-testid="stRadio"] > div > label {
+    background: transparent !important;
+    border-radius: 20px !important;
+    padding: 8px 12px !important;
+    cursor: pointer !important;
+    transition: all 0.18s ease !important;
+    flex: 1 !important;
+    text-align: center !important;
+    color: #475569 !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+}
+
+/* Hover */
+div[data-testid="stRadio"] > div > label:hover {
+    background: rgba(0,229,190,0.1) !important;
+    color: #00E5BE !important;
+}
+
+/* Active/selected */
+div[data-testid="stRadio"] > div > label[data-selected="true"],
+div[data-testid="stRadio"] > div > label:has(input:checked) {
+    background: rgba(0,229,190,0.15) !important;
+    color: #00E5BE !important;
+    box-shadow: 0 0 14px rgba(0,229,190,0.22) !important;
+}
+
+div[data-testid="stRadio"] p {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    color: inherit !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+selected_label = st.radio("nav", nav_labels, index=nav_labels.index(current_label),
+    horizontal=True, label_visibility="collapsed", key="main_nav")
+
+if nav_targets[nav_labels.index(selected_label)] != page:
+    st.session_state.page = nav_targets[nav_labels.index(selected_label)]
+    st.rerun()
 
 page = st.session_state.page
 
