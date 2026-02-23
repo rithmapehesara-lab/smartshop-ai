@@ -165,60 +165,31 @@ page = st.session_state.page
 
 st.markdown("""
 <style>
-/* Hide sidebar & footer */
 [data-testid="stSidebar"], [data-testid="collapsedControl"], footer { display:none !important; }
-
-/* Sticky nav container */
-div[data-testid="stVerticalBlockBorderWrapper"]:first-of-type {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 9999 !important;
-    padding: 0 !important;
-}
-
-/* Glass nav bar bg */
-.nav-glass {
-    background: rgba(10, 15, 30, 0.88);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 22px;
-    padding: 7px 7px 7px 7px;
-    margin-bottom: 18px;
-    box-shadow: 0 4px 28px rgba(0,0,0,0.55);
-}
-
-/* All nav buttons */
-.nav-glass button {
-    background: transparent !important;
-    border: none !important;
+.main .block-container { padding-top: 6px !important; }
+div[data-testid="stHorizontalBlock"] button {
+    background: rgba(17,24,39,0.9) !important;
+    border: 1px solid rgba(255,255,255,0.07) !important;
     color: #475569 !important;
     font-size: 11px !important;
     font-weight: 700 !important;
-    border-radius: 16px !important;
+    border-radius: 20px !important;
     padding: 10px 2px !important;
-    transition: all 0.16s ease !important;
-    letter-spacing: 0.2px !important;
+    transition: all 0.15s ease !important;
 }
-.nav-glass button:hover {
+div[data-testid="stHorizontalBlock"] button:hover {
     background: rgba(0,229,190,0.1) !important;
     color: #00E5BE !important;
 }
-.nav-glass button p {
-    font-size: 11px !important;
-    font-weight: 700 !important;
-}
-
-/* Main content padding */
-.main .block-container { padding-top: 6px !important; }
+div[data-testid="stHorizontalBlock"] button p { font-size: 11px !important; font-weight: 700 !important; }
 </style>
 """, unsafe_allow_html=True)
 
 # Header
 st.markdown(f"""
-<div style="padding:10px 2px 6px;display:flex;align-items:center;gap:10px;">
+<div style="padding:8px 0 10px;display:flex;align-items:center;gap:8px;">
     <div>
-        <div style="font-size:21px;font-weight:800;color:#00E5BE;letter-spacing:-0.5px;">🛒 SmartShop AI</div>
+        <div style="font-size:21px;font-weight:800;color:#00E5BE;">🛒 SmartShop AI</div>
         <div style="font-size:11px;color:#475569;">{datetime.now().strftime('%A, %d %B %Y')} · Pehesara Grocery</div>
     </div>
 </div>
@@ -233,115 +204,25 @@ nav_items = [
     ("🎁", "Loyal",  "🎁 Loyalty"),
 ]
 
-with st.container(border=False):
-    st.markdown('<div class="nav-glass">', unsafe_allow_html=True)
+with st.container():
+    st.markdown("""<div style="background:rgba(10,15,28,0.9);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.07);border-radius:24px;padding:6px;margin-bottom:16px;box-shadow:0 4px 24px rgba(0,0,0,0.5);">""", unsafe_allow_html=True)
     cols = st.columns(5)
     for i, (icon, label, target) in enumerate(nav_items):
         is_active = page == target
         if is_active:
             st.markdown(f"""<style>
-            div.nav-glass > div > div > div > div > div:nth-child({i+1}) button {{
-                background: rgba(0,229,190,0.14) !important;
+            div[data-testid="stHorizontalBlock"] > div:nth-child({i+1}) button {{
+                background: rgba(0,229,190,0.15) !important;
                 color: #00E5BE !important;
-                box-shadow: 0 0 16px rgba(0,229,190,0.22) !important;
+                border-color: rgba(0,229,190,0.3) !important;
+                box-shadow: 0 0 14px rgba(0,229,190,0.2) !important;
             }}
             </style>""", unsafe_allow_html=True)
         with cols[i]:
-            if st.button(icon + " " + label, use_container_width=True, key=f"nav_{i}"):
+            if st.button(f"{icon} {label}", use_container_width=True, key=f"nav_{i}"):
                 st.session_state.page = target
                 st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-page = st.session_state.page
-
-# Global CSS
-st.markdown("""
-<style>
-.main .block-container { padding-top: 8px !important; }
-footer { display: none !important; }
-[data-testid="stSidebar"] { display: none !important; }
-[data-testid="collapsedControl"] { display: none !important; }
-
-/* Nav pill buttons */
-div[data-testid="stHorizontalBlock"] button {
-    background: rgba(17,24,39,0.8) !important;
-    border: 1px solid rgba(255,255,255,0.06) !important;
-    color: #4B5563 !important;
-    font-size: 11px !important;
-    font-weight: 700 !important;
-    border-radius: 20px !important;
-    padding: 10px 4px !important;
-    transition: all 0.18s ease !important;
-}
-div[data-testid="stHorizontalBlock"] button:hover {
-    background: rgba(0,229,190,0.12) !important;
-    color: #00E5BE !important;
-    border-color: rgba(0,229,190,0.3) !important;
-}
-div[data-testid="stHorizontalBlock"] button p {
-    font-size: 11px !important;
-    font-weight: 700 !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# Top header
-st.markdown(f"""
-<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0 10px;">
-    <div>
-        <div style="font-size:22px;font-weight:800;color:#00E5BE;">🛒 SmartShop AI</div>
-        <div style="font-size:11px;color:#64748B;">{datetime.now().strftime('%A, %d %B %Y')} · Pehesara Grocery</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# Nav pill bar
-nav_items = [
-    ("📊", "Home",   "📊 Dashboard"),
-    ("📦", "Stock",  "📦 Inventory"),
-    ("💰", "Sales",  "💰 Sales Report"),
-    ("🚚", "Orders", "🚚 Suppliers"),
-    ("🎁", "Loyal",  "🎁 Loyalty"),
-]
-
-# Global CSS
-st.markdown("""
-<style>
-.main .block-container { padding-bottom: 120px !important; }
-footer, header { display: none !important; }
-[data-testid="stSidebar"] { display: none !important; }
-[data-testid="collapsedControl"] { display: none !important; }
-</style>
-""", unsafe_allow_html=True)
-
-# Top header
-st.markdown(f"""
-<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 8px;">
-    <div>
-        <div style="font-size:22px;font-weight:800;color:#00E5BE;">🛒 SmartShop AI</div>
-        <div style="font-size:11px;color:#64748B;">{datetime.now().strftime('%A, %d %B %Y')} · Pehesara Grocery</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# iPhone liquid glass nav using JS component (no new tab!)
-nav_items = [
-    ("📊", "Home",   "dashboard"),
-    ("📦", "Stock",  "inventory"),
-    ("💰", "Sales",  "sales"),
-    ("🚚", "Orders", "suppliers"),
-    ("🎁", "Loyal",  "loyalty"),
-]
-
-page_key_map = {
-    "dashboard": "📊 Dashboard",
-    "inventory": "📦 Inventory",
-    "sales":     "💰 Sales Report",
-    "suppliers": "🚚 Suppliers",
-    "loyalty":   "🎁 Loyalty",
-}
-page_reverse = {v: k for k, v in page_key_map.items()}
-current_key = page_reverse.get(page, "dashboard")
+    st.markdown("</div>", unsafe_allow_html=True)
 
 page = st.session_state.page
 
