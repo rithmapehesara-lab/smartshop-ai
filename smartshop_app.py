@@ -271,6 +271,20 @@ if page == "📊 Dashboard":
     else:
         st.markdown("""<div class="success-box">✅ All stock levels are sufficient!</div>""", unsafe_allow_html=True)
 
+    # Expire date alerts
+    today_date = datetime.now().date()
+    soon = datetime.now().date() + timedelta(days=7)
+    for item in all_inv:
+        if item.get("expire_date"):
+            try:
+                exp = datetime.strptime(item["expire_date"], "%Y-%m-%d").date()
+                if exp <= today_date:
+                    st.markdown(f"""<div class="alert-box">☠️ <b>{item['name']}</b> — EXPIRED! ({item['expire_date']})</div>""", unsafe_allow_html=True)
+                elif exp <= soon:
+                    st.markdown(f"""<div class="alert-box">⏰ <b>{item['name']}</b> — Expiring soon! ({item['expire_date']})</div>""", unsafe_allow_html=True)
+            except:
+                pass
+
     st.divider()
 
     col1, col2 = st.columns(2)
@@ -283,6 +297,18 @@ if page == "📊 Dashboard":
             weekly = df[df["date"] >= datetime.now() - timedelta(days=7)]
             if not weekly.empty:
                 st.bar_chart(weekly.groupby("date")["total"].sum())
+
+            # Sales comparison
+            this_week = df[df["date"] >= datetime.now() - timedelta(days=7)]["total"].sum()
+            last_week = df[(df["date"] >= datetime.now() - timedelta(days=14)) & (df["date"] < datetime.now() - timedelta(days=7))]["total"].sum()
+            diff = this_week - last_week
+            pct = ((diff / last_week) * 100) if last_week > 0 else 0
+            arrow = "📈" if diff >= 0 else "📉"
+            color = "#00E5BE" if diff >= 0 else "#FF6B35"
+            st.markdown(f"""<div style="background:#111827;border-radius:10px;padding:12px;margin-top:8px;border:1px solid #1E293B;">
+                <span style="color:#64748B;font-size:11px;">THIS WEEK VS LAST WEEK</span><br>
+                <span style="color:{color};font-size:18px;font-weight:700;">{arrow} {'+' if diff>=0 else ''}Rs. {diff:,.0f} ({pct:+.1f}%)</span>
+            </div>""", unsafe_allow_html=True)
 
     with col2:
         st.subheader("🤖 AI Demand Predictions (7 days)")
@@ -369,6 +395,21 @@ elif page == "💰 Sales Report":
     st.subheader("⚡ Quick Sale")
     st.caption("Item button click කළාම instant record!")
 
+    # Barcode / search
+    barcode_input = st.text_input("📷 Barcode scan හෝ item name search", placeholder="Scan barcode හෝ type කරන්න...", key="barcode_search")
+    if barcode_input:
+        matches = [i for i in inv_pos if barcode_input.lower() in i["name"].lower()]
+        if matches:
+            for item in matches:
+                if st.button(f"➕ Add: {item['name']} — Rs.{item['price']}", key=f"bc_{item['id']}"):
+                    if item["name"] in st.session_state.cart:
+                        st.session_state.cart[item["name"]]["qty"] += 1
+                    else:
+                        st.session_state.cart[item["name"]] = {"qty": 1, "price": item["price"], "id": item["id"], "stock": item["stock"]}
+                    st.rerun()
+        else:
+            st.warning("Item not found!")
+
     if "cart" not in st.session_state:
         st.session_state.cart = {}
 
@@ -412,11 +453,46 @@ elif page == "💰 Sales Report":
 
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("✅ Confirm Sale", type="primary", use_container_width=True):
+            if st.button("✅ Confirm & Receipt", type="primary", use_container_width=True):
+                from fpdf import FPDF
+                import base64, io
+                # Save sales
                 for name, info in st.session_state.cart.items():
                     supabase.table("sales").insert({"item_name": name, "quantity": info["qty"], "total": info["qty"] * info["price"], "date": datetime.now().strftime("%Y-%m-%d")}).execute()
                     new_stock = info["stock"] - info["qty"]
                     supabase.table("inventory").update({"stock": new_stock}).eq("id", info["id"]).execute()
+
+                # Generate PDF receipt
+                pdf = FPDF()
+                pdf.add_page()
+                pdf.set_font("Helvetica", "B", 16)
+                pdf.cell(0, 10, "Pehesara Grocery", ln=True, align="C")
+                pdf.set_font("Helvetica", "", 10)
+                pdf.cell(0, 6, f"Date: {datetime.now().strftime('%d %b %Y %I:%M %p')}", ln=True, align="C")
+                pdf.cell(0, 6, "--------------------------------", ln=True, align="C")
+                pdf.set_font("Helvetica", "B", 11)
+                pdf.cell(80, 8, "Item", border=0)
+                pdf.cell(30, 8, "Qty", border=0)
+                pdf.cell(0, 8, "Total", border=0, ln=True)
+                pdf.set_font("Helvetica", "", 11)
+                for name, info in st.session_state.cart.items():
+                    pdf.cell(80, 7, name[:30], border=0)
+                    pdf.cell(30, 7, str(info["qty"]), border=0)
+                    pdf.cell(0, 7, f"Rs. {info['qty']*info['price']:,.0f}", border=0, ln=True)
+                pdf.set_font("Helvetica", "B", 12)
+                pdf.cell(0, 6, "--------------------------------", ln=True, align="C")
+                pdf.cell(0, 10, f"TOTAL: Rs. {cart_total:,.0f}", ln=True, align="C")
+                pdf.set_font("Helvetica", "", 9)
+                pdf.cell(0, 8, "Thank you for shopping! Come again!", ln=True, align="C")
+
+                pdf_bytes = pdf.output()
+                b64 = base64.b64encode(bytes(pdf_bytes)).decode()
+                st.markdown(f"""<a href="data:application/pdf;base64,{b64}" download="receipt_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                    style="display:block;text-align:center;padding:10px;background:rgba(0,229,190,0.15);
+                    border:1px solid rgba(0,229,190,0.3);border-radius:12px;color:#00E5BE;
+                    font-weight:700;text-decoration:none;margin-top:8px;">
+                    🧾 Download Receipt (PDF)</a>""", unsafe_allow_html=True)
+
                 st.session_state.cart = {}
                 st.success(f"✅ Sale recorded! Rs. {cart_total:,.0f}")
                 st.rerun()
@@ -447,6 +523,47 @@ elif page == "💰 Sales Report":
     with col3:
         st.markdown(f"""<div class="metric-card"><div class="metric-label">All Time</div>
         <div class="metric-value">Rs. {total_rev:,.0f}</div></div>""", unsafe_allow_html=True)
+
+    # Monthly profit/loss
+    st.divider()
+    st.subheader("📊 Monthly Profit / Loss Report")
+    if not df_sales.empty:
+        inv_costs = {i["name"]: i.get("cost", 0) for i in supabase.table("inventory").select("name,cost").execute().data}
+        df_sales["cost"] = df_sales.apply(lambda r: r["quantity"] * inv_costs.get(r["item_name"], 0) if "quantity" in df_sales.columns else 0, axis=1)
+        df_sales["profit"] = df_sales["total"] - df_sales["cost"]
+        df_sales["month"] = pd.to_datetime(df_sales["date"]).dt.strftime("%Y-%m")
+        monthly = df_sales.groupby("month").agg({"total": "sum", "cost": "sum", "profit": "sum"}).reset_index()
+        monthly.columns = ["Month", "Revenue (Rs.)", "Cost (Rs.)", "Profit (Rs.)"]
+        st.dataframe(monthly, use_container_width=True, hide_index=True)
+
+        # PDF download
+        from fpdf import FPDF
+        import base64
+        pdf2 = FPDF()
+        pdf2.add_page()
+        pdf2.set_font("Helvetica", "B", 16)
+        pdf2.cell(0, 10, "Pehesara Grocery - Monthly Report", ln=True, align="C")
+        pdf2.set_font("Helvetica", "", 10)
+        pdf2.cell(0, 6, f"Generated: {datetime.now().strftime('%d %b %Y')}", ln=True, align="C")
+        pdf2.ln(4)
+        pdf2.set_font("Helvetica", "B", 11)
+        for col in ["Month", "Revenue (Rs.)", "Cost (Rs.)", "Profit (Rs.)"]:
+            pdf2.cell(47, 8, col, border=1)
+        pdf2.ln()
+        pdf2.set_font("Helvetica", "", 10)
+        for _, row in monthly.iterrows():
+            pdf2.cell(47, 7, str(row["Month"]), border=1)
+            pdf2.cell(47, 7, f"Rs. {row['Revenue (Rs.)']:,.0f}", border=1)
+            pdf2.cell(47, 7, f"Rs. {row['Cost (Rs.)']:,.0f}", border=1)
+            pdf2.cell(47, 7, f"Rs. {row['Profit (Rs.)']:,.0f}", border=1)
+            pdf2.ln()
+        pdf2_bytes = pdf2.output()
+        b64_2 = base64.b64encode(bytes(pdf2_bytes)).decode()
+        st.markdown(f"""<a href="data:application/pdf;base64,{b64_2}" download="monthly_report_{datetime.now().strftime('%Y%m')}.pdf"
+            style="display:inline-block;padding:10px 20px;margin-top:8px;
+            background:rgba(167,139,250,0.15);border:1px solid rgba(167,139,250,0.3);
+            border-radius:12px;color:#A78BFA;font-weight:700;text-decoration:none;">
+            📊 Download Monthly Report (PDF)</a>""", unsafe_allow_html=True)
 
     st.divider()
     col1, col2 = st.columns(2)
@@ -752,6 +869,40 @@ Thank you for being a loyal customer! 🛒
                             st.warning(f"⚠️ Email send failed: {str(e)}")
                     else:
                         st.success(f"✅ {points_earn} points added to {selected}! (No email on file)")
+                    st.rerun()
+
+    st.divider()
+    st.subheader("💳 Debt Tracker")
+    st.caption("Customer credit / uduliya track කරන්න")
+
+    debt_data = supabase.table("customers").select("id,name,debt").execute().data if "debt" in (supabase.table("customers").select("*").limit(1).execute().data[0] if supabase.table("customers").select("*").limit(1).execute().data else {}) else []
+
+    col_d1, col_d2 = st.columns(2)
+    with col_d1:
+        st.markdown("**📋 Customer Debts**")
+        debt_items = supabase.table("customers").select("name,debt").execute().data
+        if debt_items:
+            for d in debt_items:
+                debt_val = d.get("debt", 0) or 0
+                if debt_val > 0:
+                    st.markdown(f"""<div class="alert-box">💳 <b>{d['name']}</b> — Rs. {debt_val:,.0f} uduliya</div>""", unsafe_allow_html=True)
+            total_debt = sum(d.get("debt",0) or 0 for d in debt_items)
+            st.markdown(f"""<div class="metric-card"><div class="metric-label">Total Debt</div><div class="metric-value" style="color:#FF6B35">Rs. {total_debt:,.0f}</div></div>""", unsafe_allow_html=True)
+
+    with col_d2:
+        st.markdown("**➕ Add / Clear Debt**")
+        debt_names = [c["name"] for c in (supabase.table("customers").select("*").execute().data or [])]
+        if debt_names:
+            sel_debt_cust = st.selectbox("Customer", debt_names, key="debt_cust")
+            debt_action = st.radio("Action", ["➕ Add Debt", "✅ Clear Debt"], horizontal=True, key="debt_action")
+            debt_amount = st.number_input("Amount (Rs.)", min_value=0, value=0, key="debt_amt")
+            if st.button("💾 Save", use_container_width=True, key="debt_save"):
+                cust_rec = next((c for c in supabase.table("customers").select("*").execute().data if c["name"] == sel_debt_cust), None)
+                if cust_rec:
+                    current_debt = cust_rec.get("debt", 0) or 0
+                    new_debt = current_debt + debt_amount if "Add" in debt_action else max(0, current_debt - debt_amount)
+                    supabase.table("customers").update({"debt": new_debt}).eq("id", cust_rec["id"]).execute()
+                    st.success(f"✅ Updated! {sel_debt_cust} debt: Rs. {new_debt:,.0f}")
                     st.rerun()
 
     st.divider()
