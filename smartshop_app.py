@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from streamlit_autorefresh import st_autorefresh
 from supabase import create_client
 from datetime import datetime, timedelta
 import random
@@ -230,6 +231,9 @@ page = st.session_state.page
 # 📊 DASHBOARD
 # ══════════════════════════════════════════════════════════════
 if page == "📊 Dashboard":
+    # Auto refresh every 30 seconds
+    st_autorefresh(interval=30000, key="dashboard_refresh")
+
     st.title("📊 Dashboard")
     st.caption(f"Good morning! Here's your shop summary for {datetime.now().strftime('%A, %d %B %Y')}")
 
@@ -613,8 +617,9 @@ elif page == "🎁 Loyalty":
         with st.form("add_customer"):
             c_name = st.text_input("Name")
             c_phone = st.text_input("Phone")
+            c_email = st.text_input("Email (auto notifications)")
             if st.form_submit_button("Add", use_container_width=True) and c_name:
-                supabase.table("customers").insert({"name": c_name, "phone": c_phone, "points": 0, "total_spent": 0, "joined_date": datetime.now().strftime("%Y-%m-%d")}).execute()
+                supabase.table("customers").insert({"name": c_name, "phone": c_phone, "email": c_email, "points": 0, "total_spent": 0, "joined_date": datetime.now().strftime("%Y-%m-%d")}).execute()
                 st.success(f"✅ {c_name} added!")
                 st.rerun()
 
@@ -629,6 +634,110 @@ elif page == "🎁 Loyalty":
             if st.form_submit_button("Add Points", use_container_width=True) and selected:
                 cust = next((c for c in cust_data if c["name"] == selected), None)
                 if cust:
-                    supabase.table("customers").update({"points": cust["points"] + points_earn, "total_spent": cust["total_spent"] + purchase}).eq("id", cust["id"]).execute()
-                    st.success(f"✅ {points_earn} points added to {selected}!")
+                    old_points = cust["points"]
+                    new_points = old_points + points_earn
+
+                    # Badge check
+                    def get_badge(p):
+                        return "🥇 Gold" if p > 1000 else "🥈 Silver" if p > 700 else "🥉 Bronze" if p > 400 else "⭐ Member"
+                    old_badge = get_badge(old_points)
+                    new_badge = get_badge(new_points)
+                    badge_upgraded = old_badge != new_badge
+
+                    supabase.table("customers").update({"points": new_points, "total_spent": cust["total_spent"] + purchase}).eq("id", cust["id"]).execute()
+
+                    # Auto send email if customer has email
+                    cust_email = cust.get("email", "")
+                    if cust_email:
+                        import smtplib
+                        from email.mime.text import MIMEText
+                        from email.mime.multipart import MIMEMultipart
+                        try:
+                            gmail_user = st.secrets["gmail_user"]
+                            gmail_pass = st.secrets["gmail_pass"]
+
+                            subject = f"🎉 You earned {points_earn} points! - Pehesara Grocery"
+                            body = f"""
+Hi {cust['name']}! 👋
+
+Great news! You have earned <b>{points_earn} points</b> at Pehesara Grocery.
+
+📊 Your Points Balance: <b>{new_points} pts</b>
+🏆 Your Status: <b>{new_badge}</b>
+💰 Purchase Amount: <b>Rs. {purchase:,}</b>
+
+{"🎊 Congratulations! You've been upgraded to " + new_badge + " status!" if badge_upgraded else ""}
+
+Keep shopping to earn more rewards!
+Thank you for being a loyal customer! 🛒
+
+— Pehesara Grocery Team
+"""
+                            msg = MIMEMultipart("alternative")
+                            msg["Subject"] = subject
+                            msg["From"] = gmail_user
+                            msg["To"] = cust_email
+                            msg.attach(MIMEText(body, "html"))
+
+                            with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+                                server.login(gmail_user, gmail_pass)
+                                server.sendmail(gmail_user, cust_email, msg.as_string())
+                            st.success(f"✅ {points_earn} points added! 📧 Email sent to {cust_email}!")
+                        except Exception as e:
+                            st.success(f"✅ {points_earn} points added to {selected}!")
+                            st.warning(f"⚠️ Email send failed: {str(e)}")
+                    else:
+                        st.success(f"✅ {points_earn} points added to {selected}! (No email on file)")
                     st.rerun()
+
+    st.divider()
+    st.subheader("📲 Send WhatsApp Message")
+    st.caption("Customer ට directly WhatsApp message යවන්න")
+
+    import urllib.parse
+
+    if cust_data:
+        msg_cust = st.selectbox("Customer select කරන්න", [c["name"] for c in cust_data], key="msg_cust_select")
+        sel_msg_cust = next((c for c in cust_data if c["name"] == msg_cust), None)
+
+        if sel_msg_cust:
+            phone_raw = sel_msg_cust.get("phone", "")
+            phone_clean = phone_raw.replace("-", "").replace(" ", "")
+            if phone_clean and not phone_clean.startswith("+"):
+                phone_intl = "94" + phone_clean.lstrip("0")
+            else:
+                phone_intl = phone_clean.lstrip("+")
+
+            badge = "🥇 Gold" if sel_msg_cust["points"] > 1000 else "🥈 Silver" if sel_msg_cust["points"] > 700 else "🥉 Bronze" if sel_msg_cust["points"] > 400 else "⭐ Member"
+
+            msg_type = st.selectbox("Message type", [
+                "🎉 Points Earned",
+                "🥇 Badge Upgrade",
+                "🎂 Birthday Wishes",
+                "🛒 Special Offer"
+            ], key="msg_type_select")
+
+            # Auto generate message
+            if msg_type == "🎉 Points Earned":
+                default_msg = f"Hi {sel_msg_cust['name']}! 🎉 You have earned points at Pehesara Grocery. Your total points: {sel_msg_cust['points']} pts. Keep shopping to earn more rewards! 🛒"
+            elif msg_type == "🥇 Badge Upgrade":
+                default_msg = f"Congratulations {sel_msg_cust['name']}! 🥇 You have reached {badge} status at Pehesara Grocery! Thank you for your loyalty. Special benefits await you! 🎁"
+            elif msg_type == "🎂 Birthday Wishes":
+                default_msg = f"Happy Birthday {sel_msg_cust['name']}! 🎂🎉 Wishing you a wonderful day! As a special gift, visit Pehesara Grocery today for a surprise discount! 🛒💝"
+            else:
+                default_msg = f"Hi {sel_msg_cust['name']}! 🛒 Special offer just for you at Pehesara Grocery! Visit us today and enjoy exclusive deals. Don't miss out! 🎁✨"
+
+            custom_msg = st.text_area("Message edit කරන්න", value=default_msg, height=120, key="custom_msg")
+
+            if phone_intl:
+                wa_url = f"https://wa.me/{phone_intl}?text={urllib.parse.quote(custom_msg)}"
+                st.markdown(f"""
+                <a href="{wa_url}" target="_blank" style="
+                    display:block;text-align:center;padding:14px;margin-top:8px;
+                    background:rgba(37,211,102,0.15);border:1px solid rgba(37,211,102,0.35);
+                    border-radius:14px;color:#25D366;font-weight:800;font-size:15px;
+                    text-decoration:none;letter-spacing:0.3px;">
+                    💬 Send WhatsApp to {sel_msg_cust['name']}
+                </a>""", unsafe_allow_html=True)
+            else:
+                st.warning("⚠️ Phone number නෑ — Customer update කරලා phone add කරන්න!")
