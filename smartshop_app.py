@@ -1333,5 +1333,3 @@ Answer in Sinhala or English based on how user asks. Be concise and helpful."""
         if st.button("🗑️ Clear Chat", use_container_width=True):
             st.session_state.chat_history = []
             st.rerun()
-
-
