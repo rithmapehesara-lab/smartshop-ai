@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from streamlit_autorefresh import st_autorefresh
+import requests as req
 from supabase import create_client
 from datetime import datetime, timedelta
 import random
@@ -161,8 +162,29 @@ def predict_demand(item_name):
 # ─── NAVIGATION ────────────────────────────────────────────────
 if "page" not in st.session_state:
     st.session_state.page = "📊 Dashboard"
+if "theme" not in st.session_state:
+    st.session_state.theme = "dark"
+if "currency" not in st.session_state:
+    st.session_state.currency = "LKR"
+if "currency_rate" not in st.session_state:
+    st.session_state.currency_rate = 1.0
 
 page = st.session_state.page
+
+# Theme colors
+_tc = {
+    "dark":  {"bg":"#0A0F1E","card":"#111827","text":"#F1F5F9","sub":"#475569","border":"#1E293B"},
+    "light": {"bg":"#F1F5F9","card":"#FFFFFF","text":"#0A0F1E","sub":"#64748B","border":"#E2E8F0"},
+}
+_t = _tc[st.session_state.theme]
+
+st.markdown(f"""
+<style>
+.stApp {{ background-color: {_t["bg"]} !important; color: {_t["text"]} !important; }}
+.metric-card {{ background: {_t["card"]}; border-color: {_t["border"]}; }}
+div[data-testid="stMarkdownContainer"] p {{ color: {_t["text"]} !important; }}
+</style>
+""", unsafe_allow_html=True)
 
 st.markdown("""
 <style>
@@ -186,15 +208,38 @@ div[data-testid="stHorizontalBlock"] button p { font-size: 11px !important; font
 </style>
 """, unsafe_allow_html=True)
 
-# Header
-st.markdown(f"""
-<div style="padding:8px 0 10px;display:flex;align-items:center;gap:8px;">
-    <div>
+# Currency helper
+_SYMBOLS = {"LKR": "Rs.", "USD": "$", "EUR": "€", "GBP": "£", "INR": "₹"}
+_RATES   = {"LKR": 1.0, "USD": 0.0031, "EUR": 0.0029, "GBP": 0.0025, "INR": 0.26}
+
+def fmt_money(amount_lkr):
+    cur = st.session_state.currency
+    sym = _SYMBOLS.get(cur, "Rs.")
+    rate = _RATES.get(cur, 1.0)
+    converted = amount_lkr * rate
+    return f"{sym} {converted:,.2f}" if cur != "LKR" else f"Rs. {converted:,.0f}"
+
+# Header + settings bar
+hcol1, hcol2 = st.columns([3,1])
+with hcol1:
+    st.markdown(f"""
+    <div style="padding:8px 0 4px;">
         <div style="font-size:21px;font-weight:800;color:#00E5BE;">🛒 SmartShop AI</div>
         <div style="font-size:11px;color:#475569;">{datetime.now().strftime('%A, %d %B %Y')} · Pehesara Grocery</div>
     </div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+with hcol2:
+    s1, s2 = st.columns(2)
+    with s1:
+        cur_sel = st.selectbox("💵", ["LKR","USD","EUR","GBP","INR"], index=["LKR","USD","EUR","GBP","INR"].index(st.session_state.currency), key="cur_sel", label_visibility="collapsed")
+        if cur_sel != st.session_state.currency:
+            st.session_state.currency = cur_sel
+            st.rerun()
+    with s2:
+        theme_btn = "🌙" if st.session_state.theme == "light" else "☀️"
+        if st.button(theme_btn, key="theme_toggle", use_container_width=True):
+            st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
+            st.rerun()
 
 # Nav bar
 nav_items = [
@@ -203,11 +248,12 @@ nav_items = [
     ("💰", "Sales",  "💰 Sales Report"),
     ("🚚", "Orders", "🚚 Suppliers"),
     ("🎁", "Loyal",  "🎁 Loyalty"),
+    ("🤖", "AI",     "🤖 AI Chat"),
 ]
 
 with st.container():
     st.markdown("""<div style="background:rgba(10,15,28,0.9);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.07);border-radius:24px;padding:6px;margin-bottom:16px;box-shadow:0 4px 24px rgba(0,0,0,0.5);">""", unsafe_allow_html=True)
-    cols = st.columns(5)
+    cols = st.columns(6)
     for i, (icon, label, target) in enumerate(nav_items):
         is_active = page == target
         if is_active:
@@ -251,7 +297,7 @@ if page == "📊 Dashboard":
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.markdown(f"""<div class="metric-card"><div class="metric-label">Today's Earnings</div>
-        <div class="metric-value" style="color:#00E5BE">Rs. {today_revenue:,.0f}</div></div>""", unsafe_allow_html=True)
+        <div class="metric-value" style="color:#00E5BE">{fmt_money(today_revenue)}</div></div>""", unsafe_allow_html=True)
     with col2:
         st.markdown(f"""<div class="metric-card"><div class="metric-label">Today's Sales</div>
         <div class="metric-value">{today_count}</div></div>""", unsafe_allow_html=True)
@@ -384,6 +430,102 @@ if page == "📊 Dashboard":
             </div>""", unsafe_allow_html=True)
         except:
             st.info("🌐 Weather loading... Allow location permission!")
+
+    st.divider()
+
+    # Profit Goal Tracker
+    st.subheader("🎯 Monthly Profit Goal")
+    if "profit_goal" not in st.session_state:
+        st.session_state.profit_goal = 50000
+
+    g1, g2 = st.columns([2,1])
+    with g2:
+        new_goal = st.number_input("Set Goal (Rs.)", min_value=1000, value=st.session_state.profit_goal, step=5000, key="goal_input")
+        if st.button("💾 Save Goal", use_container_width=True):
+            st.session_state.profit_goal = new_goal
+            st.rerun()
+    with g1:
+        all_s = supabase.table("sales").select("total,date").execute().data
+        month_start = datetime.now().replace(day=1).strftime("%Y-%m-%d")
+        month_rev = sum(s["total"] for s in all_s if s["date"] >= month_start)
+        inv_all = supabase.table("inventory").select("name,cost").execute().data
+        cost_map = {i["name"]: i.get("cost",0) for i in inv_all}
+        month_sales_full = supabase.table("sales").select("*").execute().data
+        month_cost = sum(s.get("quantity",1)*cost_map.get(s["item_name"],0) for s in month_sales_full if s["date"] >= month_start)
+        month_profit = month_rev - month_cost
+        pct = min(int((month_profit / st.session_state.profit_goal) * 100), 100)
+        bar_color = "#00E5BE" if pct >= 75 else "#F59E0B" if pct >= 40 else "#FF6B35"
+        st.markdown(f"""
+        <div style="background:#111827;border-radius:12px;padding:14px;border:1px solid #1E293B;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span style="color:#F1F5F9;font-weight:700">This Month: {fmt_money(month_profit)}</span>
+                <span style="color:{bar_color};font-weight:700">{pct}%</span>
+            </div>
+            <div style="background:#1E293B;border-radius:8px;height:14px;">
+                <div style="background:{bar_color};width:{pct}%;height:14px;border-radius:8px;transition:width 0.5s;"></div>
+            </div>
+            <div style="color:#64748B;font-size:11px;margin-top:6px;">Goal: {fmt_money(st.session_state.profit_goal)}</div>
+        </div>""", unsafe_allow_html=True)
+
+    st.divider()
+
+    # Daily Summary Email Button
+    st.subheader("📱 Daily Summary Email")
+    if st.button("📧 Send Today's Summary to Email", use_container_width=True):
+        try:
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+            gmail_user = st.secrets.get("gmail_user","")
+            gmail_pass = st.secrets.get("gmail_pass","")
+            recv_email = st.secrets.get("owner_email", gmail_user)
+            if gmail_user and gmail_pass:
+                subj = f"📊 SmartShop Daily Report — {datetime.now().strftime('%d %b %Y')}"
+                body = f"""
+<h2>🛒 Pehesara Grocery — Daily Summary</h2>
+<p><b>Date:</b> {datetime.now().strftime('%A, %d %B %Y')}</p>
+<hr>
+<table>
+<tr><td>💰 Today Revenue</td><td><b>{fmt_money(today_revenue)}</b></td></tr>
+<tr><td>🛒 Sales Count</td><td><b>{today_count}</b></td></tr>
+<tr><td>⚠️ Low Stock Items</td><td><b>{len(low_stock)}</b></td></tr>
+<tr><td>🎯 Monthly Profit</td><td><b>{fmt_money(month_profit)} ({pct}% of goal)</b></td></tr>
+</table>
+<hr>
+<p>Sent by SmartShop AI 🤖</p>
+"""
+                msg = MIMEMultipart("alternative")
+                msg["Subject"] = subj
+                msg["From"] = gmail_user
+                msg["To"] = recv_email
+                msg.attach(MIMEText(body, "html"))
+                with smtplib.SMTP_SSL("smtp.gmail.com", 465) as srv:
+                    srv.login(gmail_user, gmail_pass)
+                    srv.sendmail(gmail_user, recv_email, msg.as_string())
+                st.success(f"✅ Daily summary sent to {recv_email}!")
+            else:
+                st.warning("⚠️ Gmail secrets set කරන්න!")
+        except Exception as e:
+            st.error(f"Email error: {e}")
+
+    # Low stock browser notification
+    import streamlit.components.v1 as _comp
+    if low_stock:
+        low_names = ", ".join([i["name"] for i in low_stock[:3]])
+        _comp.html(f"""
+        <script>
+        if (Notification && Notification.permission !== "denied") {{
+            Notification.requestPermission().then(function(p) {{
+                if (p === "granted") {{
+                    new Notification("⚠️ SmartShop AI — Low Stock!", {{
+                        body: "Low stock: {low_names}",
+                        icon: "https://cdn-icons-png.flaticon.com/512/891/891462.png"
+                    }});
+                }}
+            }});
+        }}
+        </script>
+        """, height=0)
 
 # ══════════════════════════════════════════════════════════════
 # 📦 INVENTORY
@@ -1081,3 +1223,75 @@ Thank you for being a loyal customer! 🛒
                 </a>""", unsafe_allow_html=True)
             else:
                 st.warning("⚠️ Phone number නෑ — Customer update කරලා phone add කරන්න!")
+
+# ══════════════════════════════════════════════════════════════
+# 🤖 AI CHAT
+# ══════════════════════════════════════════════════════════════
+elif page == "🤖 AI Chat":
+    st.title("🤖 AI Assistant")
+    st.caption("SmartShop ගැන ඕනෑම question ask කරන්න!")
+
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+
+    # Show chat history
+    for msg in st.session_state.chat_history:
+        with st.chat_message(msg["role"]):
+            st.write(msg["content"])
+
+    # Build shop context
+    inv_ctx  = supabase.table("inventory").select("name,stock,min_stock,price").execute().data
+    sale_ctx = supabase.table("sales").select("item_name,quantity,total,date").execute().data
+    today_s  = sum(s["total"] for s in sale_ctx if s["date"] == datetime.now().strftime("%Y-%m-%d"))
+    low_ctx  = [i["name"] for i in inv_ctx if i["stock"] < i["min_stock"]]
+
+    system_prompt = f"""You are SmartShop AI — a friendly assistant for Pehesara Grocery shop.
+Current data:
+- Today's revenue: Rs. {today_s:,.0f}
+- Low stock items: {low_ctx}
+- Inventory: {[(i['name'], i['stock']) for i in inv_ctx]}
+Answer in Sinhala or English based on how user asks. Be concise and helpful."""
+
+    if prompt := st.chat_input("Message SmartShop AI..."):
+        st.session_state.chat_history.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.write(prompt)
+
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                try:
+                    import json, urllib.request
+                    messages = [{"role": m["role"], "content": m["content"]} for m in st.session_state.chat_history]
+                    api_key = st.secrets.get("anthropic_key", "")
+                    if not api_key:
+                        reply = "⚠️ Anthropic API key set කරන්න! Streamlit Secrets > anthropic_key"
+                    else:
+                        payload = json.dumps({
+                            "model": "claude-haiku-4-5-20251001",
+                            "max_tokens": 500,
+                            "system": system_prompt,
+                            "messages": messages
+                        }).encode()
+                        req_obj = urllib.request.Request(
+                            "https://api.anthropic.com/v1/messages",
+                            data=payload,
+                            headers={
+                                "Content-Type": "application/json",
+                                "x-api-key": api_key,
+                                "anthropic-version": "2023-06-01"
+                            }
+                        )
+                        with urllib.request.urlopen(req_obj) as res:
+                            data = json.loads(res.read())
+                        reply = data["content"][0]["text"]
+                    st.write(reply)
+                    st.session_state.chat_history.append({"role": "assistant", "content": reply})
+                except Exception as e:
+                    err = f"Error: {e}"
+                    st.error(err)
+                    st.session_state.chat_history.append({"role": "assistant", "content": err})
+
+    if st.session_state.chat_history:
+        if st.button("🗑️ Clear Chat", use_container_width=True):
+            st.session_state.chat_history = []
+            st.rerun()
