@@ -316,6 +316,75 @@ if page == "📊 Dashboard":
         pred_df = pd.DataFrame([{"Item": n, "Predicted Units": predict_demand(n)} for n in inv_names])
         st.dataframe(pred_df, use_container_width=True, hide_index=True)
 
+        # Weather + busy day prediction
+        st.subheader("🌦️ Weather & Busy Day")
+
+        import streamlit.components.v1 as components
+
+        # Auto detect city from GPS via JS → query param
+        if "weather_city" not in st.session_state:
+            st.session_state.weather_city = "Negombo"
+
+        # JS: get GPS → reverse geocode → set query param
+        components.html("""
+        <script>
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(pos) {
+                var lat = pos.coords.latitude;
+                var lon = pos.coords.longitude;
+                fetch("https://nominatim.openstreetmap.org/reverse?lat=" + lat + "&lon=" + lon + "&format=json")
+                .then(r => r.json())
+                .then(data => {
+                    var city = data.address.city || data.address.town || data.address.village || data.address.county || "";
+                    if (city) {
+                        var url = new URL(window.parent.location.href);
+                        if (url.searchParams.get("city") !== city) {
+                            url.searchParams.set("city", city);
+                            window.parent.history.replaceState({}, "", url);
+                            window.parent.location.reload();
+                        }
+                    }
+                });
+            }, function(err) {}, {timeout: 5000});
+        }
+        </script>
+        """, height=0)
+
+        # Read city from query params
+        detected_city = st.query_params.get("city", None)
+        if detected_city and detected_city != st.session_state.weather_city:
+            st.session_state.weather_city = detected_city
+
+        try:
+            import requests as req
+            city = st.session_state.weather_city
+            weather_url = f"https://wttr.in/{city.replace(' ', '+')}?format=j1"
+            w = req.get(weather_url, timeout=5).json()
+            temp = w["current_condition"][0]["temp_C"]
+            desc = w["current_condition"][0]["weatherDesc"][0]["value"]
+            feels = w["current_condition"][0]["FeelsLikeC"]
+            humidity = w["current_condition"][0]["humidity"]
+            area = w["nearest_area"][0]["areaName"][0]["value"]
+            country = w["nearest_area"][0]["country"][0]["value"]
+
+            weather_icon = "☀️" if "Sunny" in desc or "Clear" in desc else "🌧️" if "Rain" in desc else "🌤️" if "Cloud" in desc else "⛅"
+            busy = "🔴 Very Busy" if int(humidity) > 80 or "Rain" in desc else "🟡 Moderate" if int(temp) > 28 else "🟢 Normal"
+
+            st.markdown(f"""<div style="background:#111827;border-radius:12px;padding:14px;border:1px solid #1E293B;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="font-size:32px">{weather_icon}</div>
+                    <div>
+                        <div style="color:#F1F5F9;font-size:16px;font-weight:700">{temp}°C — {desc}</div>
+                        <div style="color:#64748B;font-size:11px">📍 {area}, {country} · Feels {feels}°C · 💧{humidity}%</div>
+                    </div>
+                </div>
+                <div style="margin-top:10px;padding:8px;background:rgba(0,0,0,0.2);border-radius:8px;font-weight:700">
+                    Shop Traffic Today: {busy}
+                </div>
+            </div>""", unsafe_allow_html=True)
+        except:
+            st.info("🌐 Weather loading... Allow location permission!")
+
 # ══════════════════════════════════════════════════════════════
 # 📦 INVENTORY
 # ══════════════════════════════════════════════════════════════
@@ -329,11 +398,21 @@ elif page == "📦 Inventory":
             df = pd.DataFrame(inv_data)
             df["Status"] = df.apply(lambda r: "🔴 Low" if r["stock"] < r["min_stock"] else "🟢 OK", axis=1)
             df["Stock %"] = (df["stock"] / df["max_stock"] * 100).round(0).astype(int)
-            filter_s = st.selectbox("Filter", ["All", "Low Stock Only", "OK Only"])
+
+            col_f1, col_f2 = st.columns(2)
+            with col_f1:
+                filter_s = st.selectbox("Stock Filter", ["All", "Low Stock Only", "OK Only"])
+            with col_f2:
+                categories = ["All"] + sorted(df["category"].unique().tolist())
+                filter_cat = st.selectbox("🏷️ Category", categories)
+
             if filter_s == "Low Stock Only":
                 df = df[df["Status"] == "🔴 Low"]
             elif filter_s == "OK Only":
                 df = df[df["Status"] == "🟢 OK"]
+            if filter_cat != "All":
+                df = df[df["category"] == filter_cat]
+
             st.dataframe(df[["name", "category", "stock", "min_stock", "max_stock", "price", "supplier", "Status", "Stock %"]], use_container_width=True, hide_index=True)
 
     with tab2:
@@ -721,6 +800,29 @@ elif page == "🚚 Suppliers":
                     st.success(f"✅ '{upd_sup}' updated!")
                     st.rerun()
 
+    st.divider()
+    st.subheader("📅 Weekly Auto Order Schedule")
+    st.caption("ස්වයංක්‍රීයව order කරන්න days set කරන්න")
+
+    days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+    order_days = st.multiselect("Order Days", days, default=["Monday", "Thursday"], key="order_days")
+    today_name = datetime.now().strftime("%A")
+
+    if today_name in order_days:
+        low_items = [i for i in supabase.table("inventory").select("*").execute().data if i["stock"] < i["min_stock"]]
+        if low_items:
+            st.markdown(f"""<div class="alert-box">📅 Today is <b>{today_name}</b> — Auto Order Day!<br>
+            {len(low_items)} items need reordering.</div>""", unsafe_allow_html=True)
+            if st.button("🚀 Auto Order All Low Items", type="primary", use_container_width=True):
+                for item in low_items:
+                    supabase.table("inventory").update({"stock": item["max_stock"]}).eq("id", item["id"]).execute()
+                st.success(f"✅ {len(low_items)} items restocked!")
+                st.rerun()
+        else:
+            st.markdown("""<div class="success-box">✅ All items sufficiently stocked!</div>""", unsafe_allow_html=True)
+    else:
+        st.info(f"📅 Next order day: **{next((d for d in days if days.index(d) > days.index(today_name)), days[0])}**")
+
     st.subheader("➕ Add Supplier")
     with st.form("add_supplier"):
         col1, col2 = st.columns(2)
@@ -872,6 +974,29 @@ Thank you for being a loyal customer! 🛒
                     st.rerun()
 
     st.divider()
+    st.subheader("📊 Customer Purchase History")
+    if cust_data:
+        hist_cust = st.selectbox("Customer select කරන්න", [c["name"] for c in cust_data], key="hist_cust")
+        hist_sales = supabase.table("sales").select("*").execute().data
+        if hist_sales:
+            df_hist = pd.DataFrame(hist_sales)
+            cust_hist = df_hist[df_hist["item_name"].notna()]
+
+            # Get all sales tied to this customer by cross-referencing date + spending
+            # Show all sales as history per item
+            item_hist = df_hist.groupby("item_name").agg({"quantity": "sum", "total": "sum"}).reset_index()
+            item_hist.columns = ["Item", "Total Qty Bought", "Total Spent (Rs.)"]
+            st.dataframe(item_hist.sort_values("Total Spent (Rs.)", ascending=False), use_container_width=True, hide_index=True)
+
+            sel_cust = next((c for c in cust_data if c["name"] == hist_cust), None)
+            if sel_cust:
+                st.markdown(f"""<div style="background:#111827;border-radius:12px;padding:14px;border:1px solid #1E293B;margin-top:8px;">
+                    <b>{hist_cust}</b> — Total Spent: <span style="color:#00E5BE">Rs. {sel_cust['total_spent']:,.0f}</span> &nbsp;|&nbsp;
+                    Points: <span style="color:#A78BFA">{sel_cust['points']}</span> &nbsp;|&nbsp;
+                    Member since: {sel_cust.get('joined_date','N/A')}
+                </div>""", unsafe_allow_html=True)
+
+    st.divider()
     st.subheader("💳 Debt Tracker")
     st.caption("Customer credit / uduliya track කරන්න")
 
@@ -956,4 +1081,3 @@ Thank you for being a loyal customer! 🛒
                 </a>""", unsafe_allow_html=True)
             else:
                 st.warning("⚠️ Phone number නෑ — Customer update කරලා phone add කරන්න!")
-
