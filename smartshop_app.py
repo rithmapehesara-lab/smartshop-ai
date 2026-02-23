@@ -457,14 +457,48 @@ elif page == "🚚 Suppliers":
     if low:
         for item in low:
             order_qty = item["max_stock"] - item["stock"]
-            col1, col2 = st.columns([4, 1])
+
+            # Get supplier phone
+            sup_info = supabase.table("suppliers").select("phone").eq("name", item["supplier"]).execute()
+            sup_phone = sup_info.data[0]["phone"].replace("-", "").replace(" ", "") if sup_info.data else ""
+            # Make sure phone starts with country code
+            if sup_phone and not sup_phone.startswith("+"):
+                sup_phone_intl = "94" + sup_phone.lstrip("0")
+            else:
+                sup_phone_intl = sup_phone.lstrip("+")
+
+            wa_msg = f"Hello, I need to order {order_qty} units of {item['name']} urgently. Please confirm availability. - SmartShop AI"
+            import urllib.parse
+            wa_link = f"https://wa.me/{sup_phone_intl}?text={urllib.parse.quote(wa_msg)}"
+            call_link = f"tel:{sup_phone}"
+
+            st.markdown(f"""<div class="alert-box">
+                📦 <b>{item['name']}</b> — Order <b>{order_qty} units</b> from <b>{item['supplier']}</b>
+                {f"<br>📞 {item['supplier']} · {sup_info.data[0]['phone']}" if sup_info.data else ""}
+            </div>""", unsafe_allow_html=True)
+
+            col1, col2, col3 = st.columns(3)
             with col1:
-                st.markdown(f"""<div class="alert-box">📦 <b>{item['name']}</b> — Order {order_qty} units from {item['supplier']}</div>""", unsafe_allow_html=True)
+                if sup_phone:
+                    st.markdown(f"""<a href="{call_link}" style="
+                        display:block;text-align:center;padding:10px;
+                        background:rgba(0,229,190,0.12);border:1px solid rgba(0,229,190,0.3);
+                        border-radius:12px;color:#00E5BE;font-weight:700;font-size:13px;
+                        text-decoration:none;">📞 Call</a>""", unsafe_allow_html=True)
             with col2:
-                if st.button("✅ Order", key=f"order_{item['id']}"):
+                if sup_phone:
+                    st.markdown(f"""<a href="{wa_link}" target="_blank" style="
+                        display:block;text-align:center;padding:10px;
+                        background:rgba(37,211,102,0.12);border:1px solid rgba(37,211,102,0.3);
+                        border-radius:12px;color:#25D366;font-weight:700;font-size:13px;
+                        text-decoration:none;">💬 WhatsApp</a>""", unsafe_allow_html=True)
+            with col3:
+                if st.button("✅ Mark Ordered", key=f"order_{item['id']}"):
                     supabase.table("inventory").update({"stock": item["max_stock"]}).eq("id", item["id"]).execute()
-                    st.success("Ordered!")
+                    st.success(f"✅ {item['name']} marked as ordered!")
                     st.rerun()
+
+            st.markdown("<hr style='border-color:#1E293B;margin:12px 0'>", unsafe_allow_html=True)
     else:
         st.markdown("""<div class="success-box">✅ No urgent orders needed!</div>""", unsafe_allow_html=True)
 
