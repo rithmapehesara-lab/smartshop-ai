@@ -304,42 +304,6 @@ nav_items = [
     ("🎁", "Loyal",  "🎁 Loyalty"),
 ]
 
-st.markdown("""
-<div style="
-    background: rgba(13,18,30,0.85);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 26px;
-    padding: 6px;
-    margin-bottom: 20px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
-">
-""", unsafe_allow_html=True)
-
-cols = st.columns(5)
-for i, (icon, label, target) in enumerate(nav_items):
-    is_active = page == target
-    if is_active:
-        st.markdown(f"""
-        <style>
-        div[data-testid="stHorizontalBlock"] > div:nth-child({i+1}) button {{
-            background: rgba(0,229,190,0.15) !important;
-            color: #00E5BE !important;
-            border-color: rgba(0,229,190,0.25) !important;
-            box-shadow: 0 0 16px rgba(0,229,190,0.2) !important;
-        }}
-        </style>
-        """, unsafe_allow_html=True)
-    with cols[i]:
-        if st.button(f"{icon} {label}", use_container_width=True, key=f"nav_{i}"):
-            st.session_state.page = target
-            st.rerun()
-
-st.markdown("</div>", unsafe_allow_html=True)
-
-page = st.session_state.page
-
 # Global CSS
 st.markdown("""
 <style>
