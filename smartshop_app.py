@@ -956,3 +956,4 @@ Thank you for being a loyal customer! 🛒
                 </a>""", unsafe_allow_html=True)
             else:
                 st.warning("⚠️ Phone number නෑ — Customer update කරලා phone add කරන්න!")
+
