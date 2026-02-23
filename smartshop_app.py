@@ -247,8 +247,7 @@ with st.container(border=False):
             }}
             </style>""", unsafe_allow_html=True)
         with cols[i]:
-            if st.button(f"{icon}
-{label}", use_container_width=True, key=f"nav_{i}"):
+            if st.button(icon + " " + label, use_container_width=True, key=f"nav_{i}"):
                 st.session_state.page = target
                 st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
@@ -817,6 +816,3 @@ elif page == "🎁 Loyalty":
                     supabase.table("customers").update({"points": cust["points"] + points_earn, "total_spent": cust["total_spent"] + purchase}).eq("id", cust["id"]).execute()
                     st.success(f"✅ {points_earn} points added to {selected}!")
                     st.rerun()
-
-
-
