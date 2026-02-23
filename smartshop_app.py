@@ -363,6 +363,68 @@ elif page == "📦 Inventory":
 elif page == "💰 Sales Report":
     st.title("💰 Sales Report & Analytics")
 
+    # ── QUICK SALE POS ──────────────────────────────────────────
+    st.subheader("⚡ Quick Sale")
+    st.caption("Item button click කළාම instant record!")
+
+    if "cart" not in st.session_state:
+        st.session_state.cart = {}
+
+    inv_pos = supabase.table("inventory").select("name,price,stock,id").execute().data
+
+    # Item buttons grid
+    cols_per_row = 3
+    rows = [inv_pos[i:i+cols_per_row] for i in range(0, len(inv_pos), cols_per_row)]
+    for row in rows:
+        cols = st.columns(cols_per_row)
+        for j, item in enumerate(row):
+            with cols[j]:
+                if st.button(f"**{item['name']}**\nRs.{item['price']}", key=f"pos_{item['id']}", use_container_width=True):
+                    if item["name"] in st.session_state.cart:
+                        st.session_state.cart[item["name"]]["qty"] += 1
+                    else:
+                        st.session_state.cart[item["name"]] = {"qty": 1, "price": item["price"], "id": item["id"], "stock": item["stock"]}
+                    st.rerun()
+
+    # Cart display
+    if st.session_state.cart:
+        st.markdown("---")
+        st.markdown("**🛒 Cart:**")
+        cart_total = 0
+        for name, info in list(st.session_state.cart.items()):
+            subtotal = info["qty"] * info["price"]
+            cart_total += subtotal
+            col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+            with col1:
+                st.write(f"📦 {name}")
+            with col2:
+                st.write(f"x{info['qty']}")
+            with col3:
+                st.write(f"Rs.{subtotal:,.0f}")
+            with col4:
+                if st.button("❌", key=f"remove_{name}"):
+                    del st.session_state.cart[name]
+                    st.rerun()
+
+        st.markdown(f"### 💰 Total: Rs. {cart_total:,.0f}")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ Confirm Sale", type="primary", use_container_width=True):
+                for name, info in st.session_state.cart.items():
+                    supabase.table("sales").insert({"item_name": name, "quantity": info["qty"], "total": info["qty"] * info["price"], "date": datetime.now().strftime("%Y-%m-%d")}).execute()
+                    new_stock = info["stock"] - info["qty"]
+                    supabase.table("inventory").update({"stock": new_stock}).eq("id", info["id"]).execute()
+                st.session_state.cart = {}
+                st.success(f"✅ Sale recorded! Rs. {cart_total:,.0f}")
+                st.rerun()
+        with col2:
+            if st.button("🗑️ Clear Cart", use_container_width=True):
+                st.session_state.cart = {}
+                st.rerun()
+
+    st.divider()
+
     all_sales = supabase.table("sales").select("*").execute().data
     df_sales = pd.DataFrame(all_sales) if all_sales else pd.DataFrame()
 
